@@ -1,0 +1,33 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<HTML>
+<HEAD>
+<meta name="GENERATOR" content="Microsoft&reg; HTML Help Workshop 4.1">
+<Title>Overview</Title>
+</HEAD>
+<BODY>
+<H1>Introduction</H1>
+This program is designed to facilitate the identification of threshold, P1-5 and N1-5 in an ABR waveform series and export this data.  The default input/output formats used by the program are designed to work with the custom ABR file format used by Eaton Peabody Laboratory.  It is relatively straightforward to write your own import and export module if needed.  Refer to the peakio.py file for documentation of what is required.
+
+<H1>Loading Data</H1>
+Data can be loaded by opening a file directly, dragging it from the sidebar, or dragging its icon from the desktop.  If you want to invert the waveform polarity, hold down <em>control</em> while dragging the file.
+
+<H1>Analysis</H1>
+On load each waveform is bandpass filtered from 200 to 10,000 Hz to remove baseline shift as well as high frequency noise that interferes with the peak detection algorithm.  To minimize phase shift, a first order butterworth filter is used to forward and reverse filter the waveform.  An initial estimate of P1-5 is computed and presented for correction.  It is recommended that you correct the location of P1-5 to your satisfaction before computing N1-5 as the algorithm relies on knowledge of P1-5 to produce the best possible estimate for N1-5.  Even if you don't use this program to save threshold, it is important to specify it so that sub-threshold data is marked appropriately in the output file.
+
+<H1>Saving</H1>
+Aside from bandpass filtering the raw data provided by the import module, no
+other pre or post-processing is done on the data.  Current amplitude and latency
+of each point is saved, however, if the point is subthreshold (or if no
+threshold is provided), the latency is reported as a negative number.
+
+<H1>Automatic Mode</H1>
+To facilitate processing of large datasets, the program may be started in
+automatic mode.  In this mode, all unprocessed files under the indicated
+directory will be presented in sequential order, with the next one being loaded
+as soon as the data from the previous one is saved.  By default, it is assumed
+that if the corresponding *-analyzed.txt file is present somewhere under the
+search directory, the waveform has already been processed.  The method used to
+determine whether a series has been processed or not can be modified in the
+peakio.py file.
+</BODY>
+</HTML>
