@@ -15,7 +15,7 @@ Data can be loaded by opening a file directly via the command line ("python
 analyze.py CAP-139-5"), dragging and dropping the file from the operating system
 desktop, or selecting it via the file menu.  Note that you may specify multiple
 files via any of these methods.  When using the command line, wildcards should
-work (e.g. python analyze.py c:\\data\\AEH\\AEH350\\ABR-*)
+work (e.g. python analyze.py c:\\data\\AEH\\AEH350\\ABR-\*)
 
 Program Options
 ---------------
