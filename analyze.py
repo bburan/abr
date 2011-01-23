@@ -26,10 +26,17 @@ if __name__ == '__main__':
     parser.add_option('-i', '--invert', action='store_true', dest='invert',
                       default=False, 
                       help="Invert waveform polarity when waveforms are loaded")
+    parser.add_option('--demo', action='store_true', dest='demo', default=False,
+                      help='Load demo data')
 
     options, files = parser.parse_args()
 
     app = wx.PySimpleApp(0)
     frame = PhysiologyFrame(options)
+    if options.demo:
+        from os.path import dirname, join
+        directory = join(dirname(__file__), 'data')
+        demo = [join(directory, f) for f in ('ABR-52-3', 'CAP-139-5')]
+        frame._nb.load(demo)
     frame._nb.load(files)
     app.MainLoop()

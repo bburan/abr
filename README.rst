@@ -32,6 +32,7 @@ Options:
   -d DIRECTORY, --directory=DIRECTORY
                         Default directory for files
   -i, --invert          Invert waveform polarity when waveforms are loaded
+  --demo                Load demo data
 
 If you regularly use the program with a different set of default values, I
 recommend you create a shortcut or alias that contains these defaults.  Under
@@ -42,8 +43,9 @@ string:
 
 python C:\\programs\\ABR\\analyze.py --invert --directory c:\\data
 
-Where C:\\programs\\ABR\\analyze.py would be replaced with the appropriate path to
-the program and the options would be replaced with your preferred options.
+Where C:\\programs\\ABR\\analyze.py and c:\\data would be replaced with the
+appropriate path to the program and your data directory and the options list
+would be replaced with your preferred options.
 
 Analysis
 --------
@@ -56,29 +58,25 @@ this may degrade the efficacy of the automated peak.  Important note: since the
 algorithm uses a forward and reverse filter (to minimize phase shift), the
 actual order is double the requested order.
 
-baseline shift as well as high frequency noise that interferes with the peak
-detection algorithm.  To minimize phase shift, a first order butterworth filter
-is used to forward and reverse filter the waveform.  An initial estimate of P1-5
-is computed and presented for correction.  You may navigate through the waveform
-stack via the up/down arrows and select a point via the corresponding number
-(1-5).  Once a point is selected (it will turn to a white square), you can move
-it along the waveform using the right/left arrow keys.  
-
-Since the algorithm relies on the location of P1-5 to compute the best possible
-estimate of N1-5, you should correct the location of P1-5 before asking the
-algorithm to estimate N1-5.  You may also specify threshold by navigating to the
-appropriate waveform (via the up/down arrows) and hitting the "t" key.
+An initial estimate of P1-5 is computed and presented for correction.  You may
+navigate through the waveform stack via the up/down arrows and select a point
+via the corresponding number (1-5).  Once a point is selected (it will turn to a
+white square), you can move it along the waveform using the right/left arrow
+keys.  Since the algorithm relies on the location of P1-5 to compute the best
+possible estimate of N1-5, you should correct the location of P1-5 before asking
+the algorithm to estimate N1-5.  You may also specify threshold by navigating to
+the appropriate waveform (via the up/down arrows) and hitting the "t" key.
 
 Saving
 ------
 The amplitude and latency of each point are saved along with the threshold of
 the series. If the point is part of a subthreshold waveform, the additive
 inverse of the latency is saved (i.e. when parsing the file, subthreshold data
-can be recognized by negative latencies).  Amplitudes from subthreshold points can be used to estimate the noise floor if desired.
+can be recognized by negative latencies).  Amplitudes from subthreshold points
+can be used to estimate the noise floor if desired.
 
 The interface
 -------------
-
 The current waveform is displayed as a thick, black line.  Once a threshold is
 specified, subthreshold waveforms are indicated by a dashed line.  The selected
 point is indicated by a white square.  Negativities are indicated by triangles,
