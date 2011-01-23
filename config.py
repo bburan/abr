@@ -4,16 +4,19 @@ from inspect import getmembers
 import wx
  
 class DefaultValueHolder(object):
-    """Intended for use with wxConfig (or maybe _winreg) to set up and/or get
-       registry key names and values. Name attrs as default*. "default"
-       will be stripped of when reading and writing to the config file.
-       You may not use the name varDict as one of the variable names."""
+    """
+    Intended for use with wxConfig to persist data for a session.
+
+    Name attrs as default*. "default" will be stripped of when reading and
+    writing to the config file.  You may not use the name varDict as one of the
+    variable names.
+    """
  
     def __init__(self, appName, grpName):
         """Open or create the application key"""
         self.appName = appName
-        self.grpName = grpName  # if the key or group doesn't exit, it will be created
-        self.config = wx.Config(appName)     # Open the file (HKCU in windows registry)
+        self.grpName = grpName
+        self.config = wx.Config(appName)
  
     def __getattribute__(self, name):
         try:
@@ -74,13 +77,3 @@ class DefaultValueHolder(object):
             self.config.WriteInt(name, value)
         elif type == float:
             self.config.WriteFloat(name, value)
- 
-if __name__ == "__main__":
-    test = DefaultValueHolder("HETAP Pro 2.00", "Database")
-    test.SetVariables(UserName = "peter", Password = "pan", ServerName = "MyServer", database="")
-    test.InitFromConfig()
-    print test.UserName
-    test.defaultvar1=77
-    print test.GetVariables()
-    #### this also works:
-    ## test.defaultUserName = "joe"

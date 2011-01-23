@@ -1,9 +1,7 @@
 import re, os
-from numpy import average
-from numpy import std
-from datatype import Point
-from walker import ReWalker
-from datafile import loadabr
+from numpy import average, std, array
+from datatype import WaveformPoint, ABRWaveform, ABRSeries
+import time
 
 abr_re = '^ABR-[0-9]+-[0-9]+(\\.dat)?$'
 abr_processed_re = '^ABR-[0-9]+-[0-9]+(\\.dat)?-analyzed.txt$'
@@ -64,48 +62,7 @@ the appropriate exception.
 '''
 
 def load(run, invert=False, filter=None):
-    if filter['ftype'] == 'None':
-        return loadabr(run, filter=False, invert=invert)
-    else:
-        return loadabr(run, filter=True, fdict=filter, invert=invert)
-
-def list(location, skip_processed=False):
-    if location is not None and os.path.isdir(location):
-        data = os.listdir(location)
-        return [{
-            'display':  d,
-            'data':     d,
-            'sort_key': d,
-            'has_children': os.path.isdir(os.path.join(location, d)),
-            'data_string':  os.path.join(location, d),
-            } for d in data]
-
-    '''The walker class recursively iterates through all directories and returns
-    a list of file paths (relative to the location directory) when list() is
-    called.  ReWalker returns only files whose name matches the regex provided.
-    '''
-    '''
-    runs = ReWalker(location, abr_re).list()
-    if skip_processed:
-        processed_runs = ReWalker(location, abr_processed_re).list()
-        processed_runs = [os.path.split(p)[1][:-13] for p in processed_runs]
-        runs = [r for r in runs if os.path.split(r)[1] not in processed_runs]
-    '''
-
-    '''The next three lines use a decorate-sort-undecorate paradigm where the
-    file paths are turned into a list of tuples, with each tuple consisting of
-    (sort_key, file_path).  When sort() is called on a list, it always sorts by
-    the first element (the sort key in this case), then the second element and
-    so on.  Once the list is sorted, we can then remove the sort key and return
-    just the file paths.
-    '''
-    '''
-    runs = [([int(n) for n in numbers.findall(r)], r) for r in runs]
-    runs.sort()
-    runs = [r[1] for r in runs]
-    runs = [(os.path.split(r)[1], r) for r in runs]
-    return runs
-    '''
+    return loadabr(run, invert=invert, filter=filter)
 
 def save(model):
     n = 5
@@ -113,7 +70,8 @@ def save(model):
     filename = model.filename + '-analyzed.txt'
     header = 'Threshold (dB SPL): %r\nFrequency (kHz): %.2f\n%s\n%s\n%s\n%s'
     mesg = 'NOTE: Negative latencies indicate no peak'
-    filters = filter_string(model.series[-1])
+    # Assume that all waveforms were filtered identically
+    filters = filter_string(model.waveforms[-1])
 
     #Prepare spreadsheet
     col_label_fmt = 'P%d Latency\tP%d Amplitude\tN%d Latency\tN%d Amplitude\t'
@@ -121,7 +79,7 @@ def save(model):
     col_labels.extend([col_label_fmt % (i,i,i,i) for i in range(1,n+1)])
     col_labels = ''.join(col_labels)
     spreadsheet = '\n'.join([waveform_string(w) for w in \
-        reversed(model.series)])
+        reversed(model.waveforms)])
 
     header = header % (model.threshold, model.freq, filters, mesg, col_labels,
             spreadsheet)
@@ -137,10 +95,10 @@ def waveform_string(waveform):
     data.append('%f' % waveform.stat((0,1), average))
     data.append('%f' % waveform.stat((0,1), std))
     for i in range(1,6):
-        data.append('%.2f' % waveform.points[(Point.PEAK,i)].latency)
-        data.append('%.2f' % waveform.points[(Point.PEAK,i)].amplitude)
-        data.append('%.2f' % waveform.points[(Point.VALLEY,i)].latency)
-        data.append('%.2f' % waveform.points[(Point.VALLEY,i)].amplitude)
+        data.append('%.2f' % waveform.points[(WaveformPoint.PEAK,i)].latency)
+        data.append('%.2f' % waveform.points[(WaveformPoint.PEAK,i)].amplitude)
+        data.append('%.2f' % waveform.points[(WaveformPoint.VALLEY,i)].latency)
+        data.append('%.2f' % waveform.points[(WaveformPoint.VALLEY,i)].amplitude)
     return '\t'.join(data)
 
 def filter_string(waveform):
@@ -171,3 +129,53 @@ def safeopen(file):
         os.rename(file, new_fname) 
     return open(file, 'w')
 
+def loadabr(fname, invert=False, filter=None):
+    p_level = re.compile(':LEVELS:([0-9;]+)')
+    p_fs = re.compile('SAMPLE \(.sec\): ([0-9]+)')
+    p_freq = re.compile('FREQ: ([0-9\.]+)')
+
+    abr_window = 8500 #usec
+    try:
+        with open(fname) as f:
+            header, data = f.read().split('DATA')
+
+            # Extract data from header
+            levelstring = p_level.search(header).group(1).strip(';').split(';')
+            levels = array(levelstring).astype(float)
+            sampling_period = float(p_fs.search(header).group(1))
+            frequency = float(p_freq.search(header).group(1))
+
+            # Convert text representation of data to Numpy array
+            fs = 1e6/sampling_period
+            cutoff = abr_window / sampling_period
+            data = array(data.split()).astype(float)
+            data = data.reshape(len(data)/len(levels),len(levels)).T
+            data = data[:,:cutoff]
+
+            waveforms = []
+            for signal, level in zip(data, levels): 
+                #Checks for a ABR I-O bug that sometimes saves zeroed waveforms
+                if not (signal==0).all():
+                    waveform = ABRWaveform(fs, signal, level, invert=invert,
+                                           filter=filter)
+                    waveforms.append(waveform)
+
+            series = ABRSeries(waveforms, frequency)
+            series.filename = fname
+            return series
+
+    except (AttributeError, ValueError):
+        msg = 'Could not parse %s.  Most likely not a valid ABR file.' % fname
+        raise IOError, msg
+
+def loadabranalysis(fname):
+    th_match = re.compile('Threshold \(dB SPL\): ([\w.]+)')
+    freq_match = re.compile('Frequency \(kHz\): ([\d.]+)')
+    with open(fname) as f:
+        text = f.read()
+        th = th_match.search(text).group(1)
+        if th == 'None': th = None
+        else: th = float(th)
+        freq = float(freq_match.search(text).group(1))
+    data = loadspreadsheet(fname,header=6)
+    return (freq, th, data)

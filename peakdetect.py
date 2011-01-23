@@ -4,49 +4,248 @@ import operator as op
 #-------------------------------------------------------------------------------
 # Generic clustering algorithms and helper functions
 #-------------------------------------------------------------------------------
-
-def nzc_temporal_filtered(fs, waveform, min_spacing=0.3, **kwargs):
+def nzc_temporal_filtered(fs, waveform, min_spacing=0.3):
     nzc_indices = nzc(waveform)
-    p_indices = cluster(nzc_indices, waveform[nzc_indices], 
-            min_spacing*1e-3*fs)
+    p_indices = cluster(nzc_indices, waveform[nzc_indices], min_spacing*1e-3*fs)
     return np.asarray(nzc_indices[p_indices])
 
-def nzc_noise_filtered(fs, waveform, min_noise=None, dev=1.0, min_spacing=0.3,
-        **kwargs): 
+def nzc_noise_filtered(fs, waveform, dev=1.0, min_spacing=0.3):
 
-    if min_noise is None: min_noise = waveform[:1e-3*fs].std()*dev
+    min_noise = waveform[:1e-3*fs].std()*dev
 
     p_ind = nzc(waveform)
     n_ind = nzc(-waveform)
     x = np.r_[p_ind, n_ind]
     x.sort()
-    #x = np.asarray(sorted(np.r_[np.asarray(p_ind), np.asarray(n_ind)]))
 
     clusters = cluster_indices(waveform[x], min_noise)
     clusters.pop(0)
     ind = []
+
+    # Eliminate small reversals
     for c in clusters:
         clustered_valleys = [i for i in x[c] if i in n_ind]
         clustered_peaks = [i for i in x[c] if i in p_ind]
-
         if len(clustered_peaks) > len(clustered_valleys):
             y = waveform[clustered_peaks]
             ind.append(np.where(waveform == y.max())[0][0])
-
     ind = np.asarray(ind)
 
-    #If too agressive, comment out the following two lines
+    #If algorithm is too agressive, comment out the following two lines
     if len(ind) > 5:
         f_ind = cluster(ind, waveform[ind], min_spacing*1e-3*fs) 
         ind = ind[f_ind]
     return np.asarray(ind)
 
-def nzc_none(fs, waveform, **kwargs):
-    return nzc(waveform)
+#-------------------------------------------------------------------------------
+# Peak finding algorithms
+#-------------------------------------------------------------------------------
+def find_np(fs, waveform, nzc_algorithm='noise', guess_algorithm='basic', n=5,
+            bounds=None, nzc_algorithm_kw=None, guess_algorithm_kw=None):
+    '''
+    Estimate the position of peaks in the waveform
 
-def bounded_ranges(indices, bounds):
-    bounds = zip(bounds[:-1],bounds[1:])
-    return [np.where((indices>=b[0])*(indices<b[1]))[0] for b in bounds]
+    Parameters
+    ----------
+    fs : float
+        sampling frequency of waveform
+    waveform : rank-1 ndarray
+        the waveform
+    nzc_algorithm : string (none, noise, temporal)
+        algorithm used to eliminate spurious peaks due to noise in the signal
+    guess_algorithm : string (none, basic, seed)
+        algorithm used to compute best guess for the peaks
+    n : integer
+        number of peaks
+    nzc_algorithm_kw : dict
+        keyword arguments to pass to NZC algorithm
+    guess_algorithm_kw : dict
+        keyword arguments to pass to guess algorithm
+    bounds : list
+        ensure that guess for each index falls betweeen the specified bounds
+        (see below for additional information)
+
+    Returns
+    -------
+    List of estimated peak indices
+
+    This algorithm identifies the negative zero crossings (NZCs) of the first
+    derivative of the waveform.  These NZCs reflect putative peaks.  For
+    particularly noisy signals, there will be many spurious zero crossings due
+    to high-frequency artifacts.  Two algorithms are currently available to
+    eliminate as many spurious peaks as possible (specified using the
+    `nzc_algorithm` argument):
+
+        noise (default)
+            Computes the noise floor of the waveform (using the standard
+            deviation of the first msec of the signal) and groups together any
+            sequence of NZCs whose amplitude is within `dev` standard deviations
+            of each other.  The indices of the NZC with the maximum amplitude in
+            each cluster is returned.  Takes dev as a keyword argument
+            indicating the number of standard deviations (from noise floor) to
+            use as the threshold for clustering NZC sequences.
+
+        temporal
+            Groups together all sequences of NZCs that occur within
+            `min_spacing` (in seconds) of each other.  Returns the indices of
+            the NZC with the maximum amplitude in each cluster.
+
+    Note that you may specify None to indicate you do not wish spurious zero
+    crossings to be eliminated.  Once a list of indices for putative peaks are
+    identified, the list can be further processed to identify which of these
+    peaks are the most likely ones of interest (specified using the
+    `guess_algorithm` argument).  
+
+        None
+            Just return the first n indices
+        basic
+            Return the first n indices after `min_latency` (in msec)
+        seed
+            Weights the putative peaks in terms of their proximy to a list of
+            `seeds` in the format [(index_1, amplitude_1), (index_2,
+            amplitude_2), ... (index_n, amplitude_n)].  The highest-rated
+            match for each seed is returned.
+
+    If a list of bounds are specified, this will be used to winnow down the list
+    of putative peaks that will be provided to the guess_algorithm.  The
+    `Bounds` must be a list of length `n`+1.  The first index must fall between
+    bounds[0] and bounds[1].  The nth index must fall between bounds[n] and
+    bounds[n+1].
+    '''
+
+    # Get the NZC indices (e.g. the putative guess for the peak indices)
+    if nzc_algorithm_kw is None:
+        nzc_algorithm_kw = {}
+    if nzc_algorithm is None:
+        nzc_indices = nzc(waveform)
+    else:
+        nzc_func = globals()['nzc_%s_filtered' % nzc_algorithm]
+        nzc_indices = nzc_func(fs, waveform, **nzc_algorithm_kw)
+
+    indices = []
+    guess_func = globals()['np_%s' % guess_algorithm]
+    if guess_algorithm_kw is None:
+        guess_algorithm_kw = {}
+
+    if bounds is not None:
+        for p in range(n):
+            mask = (nzc_indices > bounds[p]) & (nzc_indices < bounds[p+1])
+            bounded_indices = nzc_indices[mask]
+            # If only one NZC falls within the bound, use that as the guess
+            if len(bounded_indices) == 1:
+                indices.append(bounded_indices[0])
+            # If no NZCs fall within the bound, use the lower end of the bounded
+            # range as the guess
+            elif len(bounded_indices) == 0:
+                indices.append(bounds[p])
+            else:
+                try:
+                    # If the algorithm cannot make a guess as to the best index,
+                    # it will raise an IndexError.  We capture that and place
+                    # the index on the very end of the waveform.
+                    guess = guess_func(fs, waveform, bounded_indices, p,
+                                       **guess_algorithm_kw)
+                    indices.append(guess)
+                except IndexError:
+                    indices.append(len(waveform)-1)
+    else:
+        for p in range(n):
+            try:
+                guess = guess_func(fs, waveform, nzc_indices, p,
+                                   **guess_algorithm_kw)
+                indices.append(guess)
+            except IndexError:
+                indices.append(len(waveform)-1)
+    return indices
+
+def np_none(fs, waveform, indices, n):
+    '''
+    Returns the first n indices
+    '''
+    return indices[0][n]
+
+def np_basic(fs, waveform, indices, n, min_latency=1.0):
+    '''
+    Returns the first n indices whose latency is greater than min_latency
+    '''
+    lb_index = min_latency/1e3*fs
+    return indices[indices >= lb_index][n]
+
+def np_y_fun(fs, waveform, indices, n, fun=max):
+    return np.where(waveform == fun(waveform[indices]))[0][0]
+
+def np_seed(fs, waveform, indices, n, seeds, seed_lb=0.25, seed_ub=0.50):
+    amplitudes = waveform[indices]
+    lb = seed_lb*1e-3*fs
+    ub = seed_ub*1e-3*fs
+    return seed_rank(seeds[n], indices, amplitudes, 3, lb, ub)[0][0]
+
+def iterator_np(fs, waveform, start, nzc_filter=None):
+    '''
+    Coroutine that steps through the possible guesses for the peak
+    '''
+    if nzc_filter is None:
+        nzc_indices = nzc(waveform)
+    else:
+        nzc_indices = globals()['nzc_'+nzc_filter](fs, waveform)
+
+    dp = abs(nzc_indices-start)
+    i = np.where(dp == dp.min())[0][0]
+    di = start-nzc_indices[i] #Single index steps
+
+    while True:
+        step = (yield (nzc_indices[i] + di))
+        if step is not None:
+            if step[0] == 'zc':
+                prev = i
+                if di < 0 and step[1] > 0: i -= 1
+                elif di > 0 and step[1] < 0: i += 1
+                i += step[1]
+                di = 0
+                if i >= len(nzc_indices) or i < 0:
+                    i = prev
+            else:
+                prev = di
+                di += step[1]
+                if (nzc_indices[i] + di) in nzc_indices:
+                    i = np.where(nzc_indices == (nzc_indices[i] + di))[0][0]
+                    di = 0
+                if nzc_indices[i]+di >= len(waveform) or nzc_indices[i]+di < 0:
+                    di = prev
+
+#-------------------------------------------------------------------------------
+# Generic helper functions for above algorithms
+#-------------------------------------------------------------------------------
+def nzc(x):
+    '''
+    Returns indices of the negative zero crossings of the first derivative of x
+    '''
+    dx = np.diff(x,1)
+    mask = (dx[1:]<0) & (dx[:-1]>=0)
+    return np.where(mask)[0]+1
+
+def cluster_indices(x, distance):
+    '''
+    Group together indices within `distance` of each other
+    '''
+    indices = [0]
+    clusters = []
+    for i in range(1,len(x)):
+        if abs(x[i-1] - x[i]) <= distance:
+            indices.append(i)
+        else:
+            clusters.append(indices)
+            indices = [i]
+    clusters.append(indices)
+    return clusters
+
+def cluster(indices, y, distance, fun=max):
+    clusters = cluster_indices(indices, distance)
+    values = []
+    for c in clusters:
+        index = np.where(y[c] == fun(y[c]))[0][0]
+        values.append(c[index])
+    return values
 
 def seed_rank(s, indices, amplitudes, weighting=3, lb=25, ub=50):
     di = np.asarray(indices, dtype='float')-s[0]
@@ -70,158 +269,3 @@ def seed_rank(s, indices, amplitudes, weighting=3, lb=25, ub=50):
     rankings.sort(key=op.itemgetter(1))
     return rankings
 
-#-------------------------------------------------------------------------------
-# Peak finding algorithms
-#-------------------------------------------------------------------------------
-
-def find_np(fs, waveform, nzc='noise_filtered', algorithm='basic', n=5,
-        **kwargs): 
-    nzcs = globals()['nzc_' + nzc](fs, waveform, **kwargs)
-    indices = []
-    for n in range(5):
-        try:
-            p = globals()['np_' + algorithm](fs, waveform, nzcs, n, **kwargs)
-            indices.append(p)
-        except IndexError:
-            indices.append(len(waveform)-1)
-    return indices
-
-def np_bound(fs, waveform, indices, n, bounds, bounded_algorithm, **kwargs):
-    fun = globals()['np_'+bounded_algorithm]
-    range = indices[(indices>=bounds[n])*(indices<bounds[n+1])]
-    if len(range) == 1:
-        return range[0]
-    elif len(range) == 0:
-        return bounds[n]
-    else:
-        return fun(fs, waveform, range, n, **kwargs)
-        
-def np_basic(fs, waveform, indices, n, min_latency=1.0, **kwargs):
-    lb_index = min_latency/1e3*fs
-    return indices[indices >= lb_index][n]
-
-def np_none(fs, waveform, indices, n, **kwargs):
-    return indices[0][n]
-
-def np_y_fun(fs, waveform, indices, n, fun=max, **kwargs):
-    return np.where(waveform == fun(waveform[indices]))[0][0]
-
-def np_seed(fs, waveform, indices, n, seeds, seed_lb=0.25, seed_ub=0.50,
-        **kwargs):
-    amplitudes = waveform[indices]
-    lb = seed_lb*1e-3*fs
-    ub = seed_ub*1e-3*fs
-    return seed_rank(seeds[n], indices, amplitudes, 3, lb, ub)[0][0]
-
-def manual_np(fs, waveform, start, nzc_algorithm='noise_filtered', **kwargs):
-    #points = globals()['nzc_'+nzc_algorithm](fs, waveform)
-    points = nzc(waveform)
-    dp = abs(points-start)
-    i = np.where(dp == dp.min())[0][0]
-    di = points[i]-start #Single index steps
-    while(1):
-        step = (yield (points[i] + di))
-        if step is not None:
-            if step[0] == 'zc':
-                prev = i
-                if di < 0:
-                    i -= 1
-                elif di > 0:
-                    i += 1
-                i += step[1]
-                di = 0
-                if i >= len(points) or i < 0:
-                    i = prev
-            else:
-                prev = di
-                di += step[1]
-                if (points[i] + di) in points:
-                    i = np.where(points == (points[i] + di))[0][0]
-                    di = 0
-                if points[i]+di >= len(waveform) or points[i]+di < 0:
-                    di = prev
-
-def manual_np(fs, waveform, start, nzc_algorithm='none', **kwargs):
-    points = globals()['nzc_'+nzc_algorithm](fs, waveform)
-    dp = abs(points-start)
-    i = np.where(dp == dp.min())[0][0]
-    di = start-points[i] #Single index steps
-    while(1):
-        step = (yield (points[i] + di))
-        if step is not None:
-            if step[0] == 'zc':
-                prev = i
-                if di < 0 and step[1] > 0: i -= 1
-                elif di > 0 and step[1] < 0: i += 1
-                i += step[1]
-                di = 0
-                if i >= len(points) or i < 0:
-                    i = prev
-            else:
-                prev = di
-                di += step[1]
-                if (points[i] + di) in points:
-                    i = np.where(points == (points[i] + di))[0][0]
-                    di = 0
-                if points[i]+di >= len(waveform) or points[i]+di < 0:
-                    di = prev
-
-#-------------------------------------------------------------------------------
-# Generic helper functions for above algorithms
-#-------------------------------------------------------------------------------
-
-def nzc(x):
-    '''Returns indices of all negative zero crossings'''
-    dx = np.diff(x,1)
-    mask = (dx[1:]<0) & (dx[:-1]>=0)
-    return np.where(mask)[0]+1
-
-    dx = x[1:]-x[:-1]
-    nzc = [int(i+1) for i in range(len(dx)-1) if dx[i+1]<0 and dx[i]>0]
-    return np.array(nzc)
-
-def cluster_indices(x, spacing):
-    indices = [0]
-    clusters = []
-    for i in range(1,len(x)):
-        if abs(x[i-1] - x[i]) <= spacing:
-            indices.append(i)
-        else:
-            clusters.append(indices)
-            indices = [i]
-    clusters.append(indices)
-    return clusters
-
-def cluster(x, y, spacing, fun=max):
-    clusters = cluster_indices(x, spacing)
-    values = []
-    for c in clusters:
-        index = np.where(y[c] == fun(y[c]))[0][0]
-        values.append(c[index])
-    return values
-
-if __name__ == '__main__':
-
-    from epl.datafile import loadabr
-    from pylab import *
-    from numpy import where
-
-    file = 'v:/chamber data/BNB188/ABR-188-4'
-    #file = 'c:/desktop/abr/BNB132_ABR-132-4'
-    waveforms = loadabr(file, filter=True)
-    w = waveforms.get(80)
-
-    subplot(111)
-    plot(w.x, w.y)
-
-    n = nzc(w.y)
-    p = nzc(w.y)
-    plot(w.x[n], w.y[n],'ko')
-    plot(w.x[p], w.y[p],'bo')
-
-    peaks = find_np(w.fs, w.y)
-    plot(w.x[peaks], w.y[peaks], 'go')
-    #n,p = __all_np_clustered(w.fs, w.y)
-    #plot(w.x[n], w.y[n],'ro')
-    #plot(w.x[p], w.y[p],'go')
-    show()

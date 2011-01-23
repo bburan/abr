@@ -1,15 +1,13 @@
 import wx
-from datatype import Point
-import wx.lib.pubsub as pubsub
+from datatype import WaveformPoint
 
-class KeyInteractor(object):
+class WaveformInteractor(object):
 
     KEYS = {
             wx.WXK_LEFT:    'left',
             wx.WXK_RIGHT:   'right',
             wx.WXK_DOWN:    'down',
             wx.WXK_UP:      'up',
-            wx.WXK_RETURN:  'return',
             43:             'plus',
             45:             'minus'
         }
@@ -34,8 +32,8 @@ class KeyInteractor(object):
 
     def __dispatch(self, type, evt):
         keycode = evt.GetKeyCode()
-        if keycode in KeyInteractor.KEYS:
-            mname = type + KeyInteractor.KEYS[keycode]
+        if keycode in self.KEYS:
+            mname = type + self.KEYS[keycode]
             if hasattr(self, mname):
                 getattr(self, mname)(evt)
         elif keycode < 256:
@@ -44,69 +42,102 @@ class KeyInteractor(object):
                 mname = type + 'number'
                 if hasattr(self, mname):
                     if evt.ShiftDown():
-                        polarity = Point.VALLEY
+                        polarity = WaveformPoint.VALLEY
                     else:
-                        polarity = Point.PEAK
+                        polarity = WaveformPoint.PEAK
                     getattr(self, mname)((polarity, int(chr(keycode))))
             else:
                 mname = type + chr(keycode).lower()
                 if hasattr(self, mname):
                     getattr(self, mname)()
 
-#----------------------------------------------------------------------------
-
-class WaveformInteractor(KeyInteractor):
-
     def kd_up(self, evt):
+        '''
+        Move to the prior waveform
+        '''
         self.presenter.current += 1
 
     def kd_down(self, evt):
+        '''
+        Move to the next waveform
+        '''
         self.presenter.current -= 1
 
-    def ku_return(self, evt):
+    def ku_t(self):
+        '''
+        Set current waveform as threshold
+        '''
+        '''
+        Set the current waveform as threshold
+        '''
         self.presenter.set_threshold()
 
     def kd_plus(self, evt):
-        self.presenter.scale += 1
+        '''
+        Zoom in
+        '''
+        self.presenter.scale *= 0.9
 
     def kd_minus(self, evt):
-        self.presenter.scale -= 1
+        '''
+        Zoom out
+        '''
+        self.presenter.scale *= 1.1
 
     def kd_left(self, evt):
+        '''
+        Move the selected point to the prior best guess.  If shift is pressed,
+        move the point in fractional increments instead.
+        '''
         if evt.ShiftDown():
             move = ('index', -5)
         else:
             move = ('zc', -1)
-        self.presenter.move(move)    
+        self.presenter.move_selected_point(move)    
 
     def kd_right(self, evt):
+        '''
+        Move the selected point to the next best guess.  If shift is pressed,
+        move the point in fractional increments.
+        '''
         if evt.ShiftDown():
             move = ('index', 5)
         else:
             move = ('zc', 1)
-        self.presenter.move(move)    
+        self.presenter.move_selected_point(move)    
 
     def ku_number(self, value):
+        '''
+        Select the specified point (Peak or Valley), (1-5)
+        '''
         self.presenter.toggle = value
         
     def ku_u(self):
-        '''Updates guesses for waveforms further down'''
+        '''
+        Updates guesses for the position of the point for subsequent waveforms
+        '''
         self.presenter.update_point()
 
     def ku_n(self):
+        '''
+        Toggle between raw and normalized view
+        '''
         self.presenter.normalized = not self.presenter.normalized
 
     def ku_s(self):
+        '''
+        Save the analysis
+        '''
         self.presenter.save()
 
     def ku_i(self):    
+        '''
+        Make a guess regarding the location of of the valleys
+        '''
         self.presenter.guess_n()
 
-    def ku_z(self):
-        pubsub.Publisher().sendMessage("UNDO")
-
-    def ku_p(self):
-        pubsub.Publisher().sendMessage("NEXT")
-
     def ku_d(self):
+        '''
+        Remove the current waveform
+        '''
         self.presenter.delete()
