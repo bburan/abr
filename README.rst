@@ -6,7 +6,7 @@ in the waveform.
 
 The default input/output format used by the program are designed to work with
 the in-house file format used by Eaton Peabody Laboratory.  Refer to the
-peakio.py file for documentation on how to adapt this program to your data
+peakdetect.py file for documentation on how to adapt this program to your data
 format.
 
 Loading Data

@@ -65,7 +65,7 @@ class WaveformPresenter(object):
             offset += offset_delta
 
         self.view.subplot.set_autoscale_on(False)
-        self.view.subplot.axis(xmax=8, ymin=0)
+        self.view.subplot.axis(xmax=8.5, ymin=0)
         self.view.subplot.set_yticks([])
 
         self.current = len(self.model.waveforms)-1
