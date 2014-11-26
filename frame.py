@@ -1,6 +1,6 @@
 import os
-import wx, wx.aui
-import wx.lib.filebrowsebutton as filebrowse
+import wx
+import wx.aui
 
 from control import MatplotlibPanel
 from presenter import WaveformPresenter
@@ -9,7 +9,6 @@ from interactor import WaveformInteractor
 from config import DefaultValueHolder
 import filter_EPL_LabVIEW_ABRIO_File as peakio
 
-#----------------------------------------------------------------------------
 
 class PhysiologyNotebook(wx.aui.AuiNotebook):
 
@@ -36,13 +35,13 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
     def load_file(self, filename, invert=False):
         try:
             # XOR input
-            invert = self.options.invert ^ invert 
+            invert = self.options.invert ^ invert
             if self.options.filter:
                 filter_settings = {
-                    'ftype'     : 'butter',
-                    'lowpass'   : self.options.lowpass,
-                    'highpass'  : self.options.highpass,
-                    'order'     : self.options.order,
+                    'ftype': 'butter',
+                    'lowpass': self.options.lowpass,
+                    'highpass': self.options.highpass,
+                    'order': self.options.order,
                 }
             else:
                 filter_settings = None
@@ -58,7 +57,6 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
             dlg.ShowModal()
             dlg.Destroy()
 
-#----------------------------------------------------------------------------
 
 class PhysiologyNbFileDropTarget(wx.FileDropTarget):
     '''
@@ -77,9 +75,8 @@ class PhysiologyNbFileDropTarget(wx.FileDropTarget):
             self.invert = True
         else:
             self.invert = False
-        return wx.DragMove    
+        return wx.DragMove
 
-#----------------------------------------------------------------------------
 
 class PersistentFrame(wx.Frame):
     '''
@@ -87,9 +84,9 @@ class PersistentFrame(wx.Frame):
     across sessions.
     '''
 
-    def __init__(self, name=None, parent=None, *args, **kwargs): 
+    def __init__(self, name=None, parent=None, *args, **kwargs):
         self._window = DefaultValueHolder('PersistentFrame', name)
-        self._window.SetVariables(width=600,height=800,x=0,y=0,maximized=0)
+        self._window.SetVariables(width=600, height=800, x=0, y=0, maximized=0)
         self._window.InitFromConfig()
 
         size = (self._window.width, self._window.height)
@@ -101,7 +98,8 @@ class PersistentFrame(wx.Frame):
 
     def OnQuit(self, evt):
         dlg = wx.MessageDialog(None, 'Are you sure you want to quit?',
-              'Question', wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
+                               'Question',
+                               wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
         response = dlg.ShowModal()
 
         if response == wx.ID_YES:
@@ -115,7 +113,6 @@ class PersistentFrame(wx.Frame):
             self._window.UpdateConfig()
             self.Destroy()
 
-#----------------------------------------------------------------------------
 
 class PhysiologyFrame(PersistentFrame):
 
@@ -125,7 +122,7 @@ class PhysiologyFrame(PersistentFrame):
         PersistentFrame.__init__(self, name, parent, *args, **kwargs)
         self.options = options
 
-        #Initialize menu
+        # Initialize menu
         menubar = wx.MenuBar()
         file = wx.Menu()
         ID_CLOSE_TAB = wx.NewId()
@@ -138,13 +135,13 @@ class PhysiologyFrame(PersistentFrame):
 
         self.SetMenuBar(menubar)
 
-        #Menu events
+        # Menu events
         self.Bind(wx.EVT_MENU, self.OnOpenFile, id=wx.ID_OPEN)
         self.Bind(wx.EVT_MENU, self.OnQuit, id=wx.ID_EXIT)
         self.Bind(wx.EVT_MENU, self.OnAbout, id=wx.ID_ABOUT)
         self.Bind(wx.EVT_MENU, self.OnCloseTab, id=ID_CLOSE_TAB)
 
-        #Initialize manager and panels
+        # Initialize manager and panels
         self.__mgr = wx.aui.AuiManager()
         self.__mgr.SetManagedWindow(self)
         self._nb = PhysiologyNotebook(options, self)
@@ -177,4 +174,4 @@ class PhysiologyFrame(PersistentFrame):
             dlg = wx.FileDialog(self, "Choose files", style=style)
         if dlg.ShowModal() == wx.ID_OK:
             self._nb.load(dlg.GetFilenames())
-        dlg.Destroy()    
+        dlg.Destroy()

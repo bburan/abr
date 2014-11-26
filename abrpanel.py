@@ -1,18 +1,12 @@
 #!/usr/bin/env python
 # vim: set fileencoding=utf-8
 
-#from datatype import Th
-from datatype import WaveformPoint
-import wx
-import os
-from numpy import array
 from matplotlib import transforms
 
-#----------------------------------------------------------------------------
 
 class StylePlot(object):
 
-    HIDDEN = { 'alpha': 0 }
+    HIDDEN = {'alpha': 0}
 
     def update(self):
         self.update_plot()
@@ -22,7 +16,7 @@ class StylePlot(object):
         self._setstyle(self.plot, self._getstyle())
 
     def _setstyle(self, plot, style):
-        if type(plot) == type([]):
+        if isinstance(plot, list):
             for p in plot:
                 for k, v in style.iteritems():
                     getattr(p, 'set_' + k)(v)
@@ -31,8 +25,10 @@ class StylePlot(object):
                 getattr(plot, 'set_' + k)(v)
 
     def _get_current(self):
-        try: return self._current
-        except AttributeError: return False
+        try:
+            return self._current
+        except AttributeError:
+            return False
 
     def _set_current(self, flag):
         if self.current is not flag:
@@ -41,60 +37,59 @@ class StylePlot(object):
 
     current = property(_get_current, _set_current)
 
-    #Method stubs
+    # Method stubs
     def _getstyle(self):
         raise NotImplementedError
 
     def update_plot(self):
         pass
 
-#----------------------------------------------------------------------------
 
 class PointPlot(StylePlot):
-    
+
     PEAK = {
-            'linestyle':        ' ',
-            'marker':           'o',
-            'zorder':           20,
-            'alpha':            1,
-            'markersize':       8,
-            'markeredgewidth':  1,
-            'markeredgecolor':  (0,0,0)
-        }
+        'linestyle':        ' ',
+        'marker':           'o',
+        'zorder':           20,
+        'alpha':            1,
+        'markersize':       8,
+        'markeredgewidth':  1,
+        'markeredgecolor':  (0, 0, 0)
+    }
 
     PEAK_FADED = {
-            'linestyle':        ' ',
-            'marker':           'o',
-            'zorder':           20,
-            'alpha':            0.5,
-            'markersize':       8,
-            'markeredgewidth':  1,
-            'markeredgecolor':  (0,0,0)
-        }
-    
+        'linestyle':        ' ',
+        'marker':           'o',
+        'zorder':           20,
+        'alpha':            0.5,
+        'markersize':       8,
+        'markeredgewidth':  1,
+        'markeredgecolor':  (0, 0, 0)
+    }
+
     VALLEY = {
-            'linestyle':        ' ',
-            'marker':           '^',
-            'zorder':           20,
-            'alpha':            1,
-            'markersize':       9,
-            'markeredgewidth':  1,
-            'markeredgecolor':  (0,0,0)
-        }
+        'linestyle':        ' ',
+        'marker':           '^',
+        'zorder':           20,
+        'alpha':            1,
+        'markersize':       9,
+        'markeredgewidth':  1,
+        'markeredgecolor':  (0, 0, 0)
+    }
 
     TOGGLE = {
-            'linestyle':        ' ',
-            'marker':           's',
-            'zorder':           100,
-            'alpha':            1,
-            'markersize':       8,
-            'markeredgewidth':  1,
-            'markerfacecolor':  (1,1,1),
-            'markeredgecolor':  (0,0,0)
-        }
+        'linestyle':        ' ',
+        'marker':           's',
+        'zorder':           100,
+        'alpha':            1,
+        'markersize':       8,
+        'markeredgewidth':  1,
+        'markerfacecolor':  (1, 1, 1),
+        'markeredgecolor':  (0, 0, 0)
+    }
 
-    COLORS      = [(1,0,0), (1,1,0), (0,1,0), (0,1,1), (0,0,1)]
-    DARK_COLORS = [(.3,0,0), (.3,.3,0), (0,.3,0), (0,.3,.3), (0,0,.3)]
+    COLORS = [(1, 0, 0), (1, 1, 0), (0, 1, 0), (0, 1, 1), (0, 0, 1)]
+    DARK_COLORS = [(.3, 0, 0), (.3, .3, 0), (0, .3, 0), (0, .3, .3), (0, 0, .3)]
 
     def __init__(self, parent, figure, point):
         self.figure = figure
@@ -126,34 +121,33 @@ class PointPlot(StylePlot):
         self.plot.set_data(self.point.x, self.point.y)
         self.plot.set_transform(self.parent.plot.get_transform())
 
-#----------------------------------------------------------------------------
 
 class WaveformPlot(StylePlot):
 
     CUR_PLOT = {
-            'c':            (0,0,0),
-            'linewidth':    4,
-            'linestyle':    '-',
-            'zorder'   :    20,
-        }
+        'c':            (0, 0, 0),
+        'linewidth':    4,
+        'linestyle':    '-',
+        'zorder':       20,
+    }
     PLOT = {
-            'c':            (0.6,0.6,0.6),
-            'linewidth':    2,
-            'linestyle':    '-',
-            'zorder'   :    10,
-        }
+        'c':            (0.6, 0.6, 0.6),
+        'linewidth':    2,
+        'linestyle':    '-',
+        'zorder':       10,
+    }
     CUR_SUBTH_PLOT = {
-            'c':            (0.3,0.3,0.3),
-            'linewidth':    4,
-            'linestyle':    ':',
-            'zorder'   :    10,
-        }
+        'c':            (0.3, 0.3, 0.3),
+        'linewidth':    4,
+        'linestyle':    ':',
+        'zorder':       10,
+    }
     SUBTH_PLOT = {
-            'c':            (0.3,0.3,0.3),
-            'linewidth':    2,
-            'linestyle':    ':',
-            'zorder'   :    10,
-        }
+        'c':            (0.3, 0.3, 0.3),
+        'linewidth':    2,
+        'linestyle':    ':',
+        'zorder':       10,
+    }
 
     def __init__(self, waveform, axis, offset):
         self.offset = offset
@@ -170,8 +164,8 @@ class WaveformPlot(StylePlot):
         # Compute normalized transform.  Basically the min/max of the waveform
         # are scaled to the range [0, 1] (i.e. normalized) before being passed
         # to the t_reg transform.
-        boxin  = transforms.Bbox([[0, self.waveform.y.min()],
-                                 [ 1, self.waveform.y.max()]])
+        boxin = transforms.Bbox([[0, self.waveform.y.min()],
+                                [1, self.waveform.y.max()]])
         boxout = transforms.Bbox([[0, 0], [1, 1]])
         self.t_norm = transforms.BboxTransform(boxin, boxout) + self.t_reg
 
@@ -181,17 +175,17 @@ class WaveformPlot(StylePlot):
 
     def __del__(self):
         self.axis.lines.remove(self.plot)
-        
+
     def remove(self):
         self.axis.lines.remove(self.plot)
         for v in self.points.values():
             v.remove()
 
     STYLE = {
-        (True,  True )    : CUR_PLOT,
-        (True,  False)    : CUR_SUBTH_PLOT,
-        (False, True )    : PLOT,
-        (False, False)    : SUBTH_PLOT,
+        (True,  True):  CUR_PLOT,
+        (True,  False): CUR_SUBTH_PLOT,
+        (False, True):  PLOT,
+        (False, False): SUBTH_PLOT,
     }
 
     def _getstyle(self):
@@ -206,9 +200,9 @@ class WaveformPlot(StylePlot):
             self._toggle = point
 
     def get_toggle(self):
-        try: 
+        try:
             return self._toggle
-        except AttributeError: 
+        except AttributeError:
             return None
 
     toggle = property(get_toggle, set_toggle)

@@ -1,20 +1,21 @@
 import wx
-from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg \
-        as FigureCanvas
 from matplotlib.figure import Figure
+from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg \
+    as FigureCanvas
+
 
 class MatplotlibPanel(wx.Panel):
-    # Adapted from http://www.scipy.org/Matplotlib_figure_in_a_wx_panel 
+    # Adapted from http://www.scipy.org/Matplotlib_figure_in_a_wx_panel
 
-    #Defines plot styles
+    # Defines plot styles
     AXIS_LABEL = {
-            'fontsize':     16,
-            'fontweight':   'bold'
-        }
+        'fontsize':     16,
+        'fontweight':   'bold'
+    }
     PLOT_TEXT = {
-            'fontsize':     10,
-            'fontweight':   'bold'
-        }
+        'fontsize':     10,
+        'fontweight':   'bold'
+    }
 
     def __init__(self, parent, xlabel, ylabel, id=wx.ID_ANY, **kwargs):
         wx.Panel.__init__(self, parent, id=id, **kwargs)

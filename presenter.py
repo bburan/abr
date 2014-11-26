@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # vim: set fileencoding=utf-8
 
 import wx
@@ -12,10 +11,8 @@ from matplotlib.transforms import blended_transform_factory
 
 import filter_EPL_LabVIEW_ABRIO_File as peakio
 
-#----------------------------------------------------------------------------
 
 class WaveformPresenter(object):
-
 
     def __init__(self, model, view, interactor, options=None):
         self._toggle = {}
@@ -46,8 +43,6 @@ class WaveformPresenter(object):
         offset = 0.05
         self.plots = []
 
-        from matplotlib.axes import Axes
-        ticks = []
         bounds = []
         text_trans = blended_transform_factory(self.view.figure.transFigure,
                                                self.view.subplot.transAxes)
@@ -99,32 +94,32 @@ class WaveformPresenter(object):
             self.view.canvas.draw()
 
     def get_current(self):
-        try: 
+        try:
             return self._current
-        except AttributeError: 
+        except AttributeError:
             return -1
 
     def set_current(self, value):
-        if value < 0 or value > len(self.model.waveforms)-1: 
+        if value < 0 or value > len(self.model.waveforms)-1:
             pass
-        elif value == self.current: 
+        elif value == self.current:
             pass
-        else:    
+        else:
             self.iterator = None
-            try: 
+            try:
                 self.plots[self.current].current = False
-            except IndexError: 
+            except IndexError:
                 pass
             self.plots[value].current = True
             self._redrawflag = True
             self._current = value
 
-    current = property(get_current, set_current, None, None)      
+    current = property(get_current, set_current, None, None)
 
     def get_scale(self):
-        try: 
+        try:
             return self._scale
-        except AttributeError: 
+        except AttributeError:
             return 10
 
     def set_scale(self, value):
@@ -132,10 +127,10 @@ class WaveformPresenter(object):
             return
         self._scale = value
         self.view.subplot.axis(ymin=0, ymax=value)
-        self.update_labels()    
+        self.update_labels()
         self._redrawflag = True
 
-    scale = property(get_scale, set_scale, None, None)      
+    scale = property(get_scale, set_scale, None, None)
 
     def update_labels(self):
         if self.normalized:
@@ -144,15 +139,15 @@ class WaveformPresenter(object):
             self.view.set_title('raw')
 
     def get_normalized(self):
-        try: 
+        try:
             return self._normalized
-        except AttributeError: 
+        except AttributeError:
             return False
 
     def set_normalized(self, value):
-        if value == self.normalized: 
+        if value == self.normalized:
             pass
-        else:    
+        else:
             self._normalized = value
             if self._normalized:
                 self._reg_scale = self.scale
@@ -165,7 +160,7 @@ class WaveformPresenter(object):
                 p.normalized = value
                 p.update()
             self._plotupdate = True
-            self.update_labels()    
+            self.update_labels()
 
     normalized = property(get_normalized, set_normalized)
 
@@ -174,22 +169,22 @@ class WaveformPresenter(object):
         self._plotupdate = True
 
     def get_toggle(self):
-        try: 
+        try:
             return self._toggle[self.current]
-        except AttributeError: 
+        except AttributeError:
             self._toggle = {}
-        except KeyError:    
+        except KeyError:
             return None
 
     def set_toggle(self, value):
-        if value == self.toggle: 
+        if value == self.toggle:
             pass
         else:
             self.iterator = None
             self.plots[self.current].toggle = value
             self._toggle[self.current] = value
             self._redrawflag = True
-        
+
     toggle = property(get_toggle, set_toggle, None, None)
 
     def guess_p(self, start=None):
@@ -205,8 +200,8 @@ class WaveformPresenter(object):
                 seeds = zip(i_peaks, a_peaks)
                 p_indices = find_np(cur.fs, cur.y, guess_algorithm='seed',
                                     guess_algorithm_kw={'seeds': seeds},
-                                    nzc_algorithm='noise', n=5) 
-            except IndexError, e:
+                                    nzc_algorithm='noise', n=5)
+            except IndexError:
                 p_indices = find_np(cur.fs, cur.y, n=5)
             for i, v in enumerate(p_indices):
                 self.setpoint(cur, (WaveformPoint.PEAK, i+1), v)
@@ -216,12 +211,12 @@ class WaveformPresenter(object):
             cur = self.model.waveforms[i]
             index = self.model.waveforms[i+1].points[self.toggle].index
             amplitude = self.model.waveforms[i+1].y[index]
-            seeds=[(index, amplitude)]
+            seeds = [(index, amplitude)]
             if self.toggle[0] == WaveformPoint.PEAK:
                 index, = find_np(cur.fs, cur.y, guess_algorithm="seed", n=1,
                                  guess_algorithm_kw={'seeds': seeds},
                                  nzc_algorithm='noise')
-            else:    
+            else:
                 index, = find_np(cur.fs, -cur.y, guess_algorithm="seed", n=1,
                                  guess_algorithm_kw={'seeds': seeds},
                                  nzc_algorithm='noise')
@@ -244,13 +239,13 @@ class WaveformPresenter(object):
                 n_indices = find_np(cur.fs, -cur.y, guess_algorithm='seed',
                                     guess_algorithm_kw={'seeds': seeds},
                                     bounds=bounds, nzc_algorithm='noise',
-                                    nzc_algorithm_kw={'dev': 0.5}) 
-            except IndexError, e:
+                                    nzc_algorithm_kw={'dev': 0.5})
+            except IndexError:
                 n_indices = find_np(cur.fs, -cur.y, bounds=bounds,
                                     guess_algorithm='y_fun',
                                     nzc_algorithm='noise',
                                     nzc_algorithm_kw={'dev': 0.5})
-            for i,v in enumerate(n_indices):
+            for i, v in enumerate(n_indices):
                 self.setpoint(cur, (WaveformPoint.VALLEY, i+1), v)
         self._plotupdate = True
 
@@ -276,11 +271,11 @@ class WaveformPresenter(object):
             start_index = waveform.points[self.toggle].index
             if self.toggle[0] == WaveformPoint.PEAK:
                 iterator = iterator_np(waveform.fs, waveform.y, start_index)
-            else:    
+            else:
                 iterator = iterator_np(waveform.fs, -waveform.y, start_index)
             iterator.next()
             self._iterator[self.current] = iterator
-            return self._iterator[self.current]    
+            return self._iterator[self.current]
         else:
             return None
 

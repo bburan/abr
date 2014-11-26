@@ -1,13 +1,8 @@
 """
 Collection of classes for handling common data types
-
-Created: Sat 23 Jun 2007 12:18:30 PM
-Modified: Sat 16 Aug 2008 11:46:13 AM
 """
 
 from __future__ import division
-
-__author__ = 'Brad Buran, bburan@alum.mit.edu'
 
 from scipy import signal
 import numpy as np
@@ -15,13 +10,14 @@ from copy import deepcopy
 
 import operator
 
+
 class Waveform(object):
 
     def __init__(self, fs, signal, invert=False, filter=False):
         self.fs = fs
-        #Time in msec
+        # Time in msec
         self.x = np.arange(len(signal)) * 1000.0 / self.fs
-        #Voltage in microvolts
+        # Voltage in microvolts
         self.y = signal
 
         if invert:
@@ -34,7 +30,7 @@ class Waveform(object):
         are specified, performs bandpass filtering (1st order butterworth)
         with fl=200Hz and fh=10000Hz.  Note that the default uses filtfilt
         using a 1st order butterworth, which essentially has the same effect
-        as a 2nd order with lfilt (but without the phase delay).  
+        as a 2nd order with lfilt (but without the phase delay).
         """
         Wn = highpass/self.fs, lowpass/self.fs
         kwargs = dict(N=order, Wn=Wn, btype='band', ftype=ftype)
@@ -65,15 +61,13 @@ class Waveform(object):
         return func(self.y[lb:ub])
 
 
-#-------------------------------------------------------------------------------
-
 class WaveformPoint(object):
     '''
     Parameters
     ----------
     parent : waveform
         Waveform point is associated with
-    index : 
+    index :
         Index in waveform signal
     point_type :
         Type
@@ -85,7 +79,6 @@ class WaveformPoint(object):
     def __init__(self, parent, index, point):
         self.parent = parent
         self.index = index
-        #self.point = point
         self.point_type = point[0]
         self.wave_number = point[1]
 
@@ -116,10 +109,9 @@ class WaveformPoint(object):
     latency = property(_get_latency)
     amplitude = property(_get_amplitude)
 
-#-------------------------------------------------------------------------------
 
 class ABRWaveform(Waveform):
-    
+
     def __init__(self, fs, signal, level, series=None, invert=False,
                  filter=False):
         super(ABRWaveform, self).__init__(fs, signal, invert, filter)
@@ -133,7 +125,6 @@ class ABRWaveform(Waveform):
     def is_suprathreshold(self):
         return self.level >= self.series.threshold
 
-#-------------------------------------------------------------------------------
 
 class ABRSeries(object):
 
@@ -147,6 +138,6 @@ class ABRSeries(object):
 
     def get(self, level):
         for w in self.waveforms:
-            if w.level == level: 
+            if w.level == level:
                 return w
         return None

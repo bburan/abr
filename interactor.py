@@ -1,22 +1,23 @@
 import wx
 from datatype import WaveformPoint
 
+
 class WaveformInteractor(object):
 
     KEYS = {
-            wx.WXK_LEFT:    'left',
-            wx.WXK_RIGHT:   'right',
-            wx.WXK_DOWN:    'down',
-            wx.WXK_UP:      'up',
-            43:             'plus',
-            45:             'minus'
-        }
+        wx.WXK_LEFT:    'left',
+        wx.WXK_RIGHT:   'right',
+        wx.WXK_DOWN:    'down',
+        wx.WXK_UP:      'up',
+        43:             'plus',
+        45:             'minus'
+    }
 
     def Install(self, presenter, view):
         self.presenter = presenter
         self.view = view
 
-        #Events to capture
+        # Events to capture
         self.view.canvas.Bind(wx.EVT_KEY_UP, self.__keyup)
         self.view.canvas.Bind(wx.EVT_KEY_DOWN, self.__keydown)
         self.view.canvas.Bind(wx.EVT_IDLE, self.__idle)
@@ -38,7 +39,6 @@ class WaveformInteractor(object):
                 getattr(self, mname)(evt)
         elif keycode < 256:
             if chr(keycode) in ['1', '2', '3', '4', '5']:
-                keychar = chr(keycode)
                 mname = type + 'number'
                 if hasattr(self, mname):
                     if evt.ShiftDown():
@@ -93,7 +93,7 @@ class WaveformInteractor(object):
             move = ('index', -5)
         else:
             move = ('zc', -1)
-        self.presenter.move_selected_point(move)    
+        self.presenter.move_selected_point(move)
 
     def kd_right(self, evt):
         '''
@@ -104,14 +104,14 @@ class WaveformInteractor(object):
             move = ('index', 5)
         else:
             move = ('zc', 1)
-        self.presenter.move_selected_point(move)    
+        self.presenter.move_selected_point(move)
 
     def ku_number(self, value):
         '''
         Select the specified point (Peak or Valley), (1-5)
         '''
         self.presenter.toggle = value
-        
+
     def ku_u(self):
         '''
         Updates guesses for the position of the point for subsequent waveforms
@@ -130,7 +130,7 @@ class WaveformInteractor(object):
         '''
         self.presenter.save()
 
-    def ku_i(self):    
+    def ku_i(self):
         '''
         Make a guess regarding the location of of the valleys
         '''
