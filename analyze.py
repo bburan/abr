@@ -1,35 +1,33 @@
 #!python
 
-# wxPython has a lot of DeprecationWarnings so we ignore these
-#import warnings; warnings.simplefilter('ignore', DeprecationWarning)
-
-from optparse import OptionParser
+import argparse
 from frame import PhysiologyFrame
 import wx
 
-#----------------------------------------------------------------------------
-
 if __name__ == '__main__':
-    parser = OptionParser("analyze.py [options] [filenames]")
+    parser = argparse.ArgumentParser("analyze.py")
 
-    parser.add_option('--nofilter', action='store_false', dest='filter',
-                      default=True, help='Do not filter waveform')
-    parser.add_option('--lowpass', action='store', dest='lowpass',
-                      help='Lowpass cutoff (Hz), default 10,000 Hz', default=10e3, type="float")
-    parser.add_option('--highpass', action='store', dest='highpass',
-                      help='Highpass cutoff (Hz), default 200 Hz', default=200, type="float")
-    parser.add_option('--order', action='store', dest='order',
-                      help='Filter order, default 1st order', default=1,
-                      type='int')
-    parser.add_option('-d', '--directory', action='store', dest='directory',
-                      help='Default directory for files')
-    parser.add_option('-i', '--invert', action='store_true', dest='invert',
-                      default=False, 
-                      help="Invert waveform polarity when waveforms are loaded")
-    parser.add_option('--demo', action='store_true', dest='demo', default=False,
-                      help='Load demo data')
+    parser.add_argument('--nofilter', action='store_false', dest='filter',
+                        default=True, help='Do not filter waveform')
+    parser.add_argument('--lowpass', action='store', dest='lowpass',
+                        help='Lowpass cutoff (Hz), default 10,000 Hz',
+                        default=10e3, type=float)
+    parser.add_argument('--highpass', action='store', dest='highpass',
+                        help='Highpass cutoff (Hz), default 200 Hz',
+                        default=200, type=float)
+    parser.add_argument('--order', action='store', dest='order',
+                        help='Filter order, default 1st order', default=1,
+                        type=int)
+    parser.add_argument('-d', '--directory', action='store', dest='directory',
+                        help='Default directory for files')
+    parser.add_argument('-i', '--invert', action='store_true', dest='invert',
+                        default=False,
+                        help="Invert waveform polarity when loaded")
+    parser.add_argument('--demo', action='store_true', dest='demo',
+                        default=False, help='Load demo data')
+    parser.add_argument('filenames', nargs='*')
 
-    options, files = parser.parse_args()
+    options = parser.parse_args()
 
     app = wx.PySimpleApp(0)
     frame = PhysiologyFrame(options)
@@ -38,5 +36,5 @@ if __name__ == '__main__':
         directory = join(dirname(__file__), 'data')
         demo = [join(directory, f) for f in ('ABR-52-3', 'CAP-139-5')]
         frame._nb.load(demo)
-    frame._nb.load(files)
+    frame._nb.load(options.filenames)
     app.MainLoop()
