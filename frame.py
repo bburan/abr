@@ -26,9 +26,6 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
         self.SetDropTarget(dt)
 
     def load(self, filenames, invert=False):
-        # Set busy cursor since it can take a second or so to load multiple data
-        # files
-        wx.SetCursor(wx.StockCursor(wx.CURSOR_WAIT))
         for filename in filenames:
             self.load_file(filename, invert)
 
