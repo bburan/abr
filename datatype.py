@@ -16,9 +16,10 @@ class Waveform(object):
     def __init__(self, fs, signal, invert=False, filter=False):
         self.fs = fs
         # Time in msec
-        self.x = np.arange(len(signal)) * 1000.0 / self.fs
+        self.x = np.arange(signal.shape[-1]) * 1000.0 / self.fs
         # Voltage in microvolts
-        self.y = signal
+        self.signal = signal
+        self.y = self.signal.mean(axis=0)
 
         if invert:
             self.invert()
@@ -26,11 +27,10 @@ class Waveform(object):
             self.filter(**filter)
 
     def filter(self, order, lowpass, highpass, ftype='butter'):
-        """Returns waveform filtered using filter paramters specified. If none
-        are specified, performs bandpass filtering (1st order butterworth)
-        with fl=200Hz and fh=10000Hz.  Note that the default uses filtfilt
-        using a 1st order butterworth, which essentially has the same effect
-        as a 2nd order with lfilt (but without the phase delay).
+        """
+        Returns waveform filtered using filter paramters specified. Since
+        forward and reverse filtering is used to avoid introducing phase delay,
+        the filter order is essentially doubled.
         """
         Wn = highpass/self.fs, lowpass/self.fs
         kwargs = dict(N=order, Wn=Wn, btype='band', ftype=ftype)
@@ -40,6 +40,8 @@ class Waveform(object):
             self._zpk.append(zpk)
         except:
             self._zpk = [zpk]
+        self.signal = signal.filtfilt(b, a, self.signal, axis=-1)
+        self.y = self.signal.mean(axis=0)
         self.y = signal.filtfilt(b, a, self.y)
 
     def filtered(self, *args, **kwargs):
