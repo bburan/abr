@@ -1,5 +1,6 @@
 import re
 import os
+import io
 from numpy import average, std, array
 from datatype import WaveformPoint, ABRWaveform, ABRSeries
 import time
@@ -144,7 +145,7 @@ def loadabr(fname, invert=False, filter=None):
 
     abr_window = 8500  # usec
     try:
-        with open(fname) as f:
+        with io.open(fname, encoding='ISO-8859-1') as f:
             header, data = f.read().split('DATA')
 
             # Extract data from header
@@ -164,8 +165,10 @@ def loadabr(fname, invert=False, filter=None):
             for signal, level in zip(data, levels):
                 # Checks for a ABR I-O bug that sometimes saves zeroed waveforms
                 if not (signal == 0).all():
-                    waveform = ABRWaveform(fs, signal, level, invert=invert,
-                                           filter=filter)
+                    # Add new dimension to signal since the updated ABR program
+                    # now takes individual waveforms.
+                    waveform = ABRWaveform(fs, signal[np.newaxis], level,
+                                           invert=invert, filter=filter)
                     waveforms.append(waveform)
 
             series = ABRSeries(waveforms, frequency)
