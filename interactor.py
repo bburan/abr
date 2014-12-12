@@ -10,7 +10,10 @@ class WaveformInteractor(object):
         wx.WXK_DOWN:    'down',
         wx.WXK_UP:      'up',
         43:             'plus',
-        45:             'minus'
+        45:             'minus',
+        61:             'plus',
+        390:            'minus',
+        388:            'plus',
     }
 
     def Install(self, presenter, view):
