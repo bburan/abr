@@ -9,7 +9,7 @@ from numpy import array
 import operator
 from matplotlib.transforms import blended_transform_factory
 
-import filter_EPL_LabVIEW_ABRIO_File as peakio
+import filter_HDF5_file as peakio
 
 
 class WaveformPresenter(object):
