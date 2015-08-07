@@ -7,7 +7,7 @@ from presenter import WaveformPresenter
 from interactor import WaveformInteractor
 
 from config import DefaultValueHolder
-import filter_HDF5_file as peakio
+import filter_NCRAR_file as peakio
 
 
 class PhysiologyNotebook(wx.aui.AuiNotebook):

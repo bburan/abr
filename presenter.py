@@ -9,7 +9,7 @@ from numpy import array
 import operator
 from matplotlib.transforms import blended_transform_factory
 
-import filter_HDF5_file as peakio
+import filter_NCRAR_file as peakio
 
 
 class WaveformPresenter(object):
@@ -60,7 +60,7 @@ class WaveformPresenter(object):
             offset += offset_delta
 
         self.view.subplot.set_autoscale_on(False)
-        self.view.subplot.axis(xmax=8.5, ymin=0)
+        self.view.subplot.axis(xmax=10, ymin=0)
         self.view.subplot.set_yticks([])
 
         self.current = len(self.model.waveforms)-1
