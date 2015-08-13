@@ -115,11 +115,12 @@ class WaveformPoint(object):
 class ABRWaveform(Waveform):
 
     def __init__(self, fs, signal, level, series=None, invert=False,
-                 filter=False):
+                 filter=False, min_latency=None):
         super(ABRWaveform, self).__init__(fs, signal, invert, filter)
         self.level = level
         self.series = series
         self.points = {}
+        self.min_latency = min_latency
 
     def is_subthreshold(self):
         return self.level < self.series.threshold

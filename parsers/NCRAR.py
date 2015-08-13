@@ -137,6 +137,15 @@ def load_waveforms(filename, info):
 ################################################################################
 # API
 ################################################################################
+
+# Minimum wave 1 latencies
+latencies = {
+    1000: 3.1,
+    3000: 2.1,
+    4000: 2.3,
+    6000: 1.8,
+}
+
 def load(fname, invert=False, filter=None, abr_window=8.5e-3):
     with open(fname) as fh:
         line = fh.readline()
@@ -145,18 +154,19 @@ def load(fname, invert=False, filter=None, abr_window=8.5e-3):
     info = load_metadata(fname)
     info = info[info.channel == 1]
     fs = 1/(info.iloc[0]['smp. period']*1e-6)
-    print info.iloc[0]['smp. period']
-    print fs
     series = []
     kw = dict(invert=invert, filter=None)
     for frequency, f_info in info.groupby('stim. freq.'):
         signal = load_waveforms(fname, f_info)
         signal = signal[signal.index >= 0]
         waveforms = []
+        min_latency = latencies.get(frequency)
         for i, row in f_info.iterrows():
             s = signal[i].values[np.newaxis]
-            waveform = ABRWaveform(fs, s, row['level'], **kw)
+            waveform = ABRWaveform(fs, s, row['level'], min_latency=min_latency,
+                                   **kw)
             waveforms.append(waveform)
+
         s = ABRSeries(waveforms, frequency/1e3)
         s.filename = fname
         series.append(s)

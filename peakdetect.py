@@ -5,18 +5,29 @@ import operator as op
 ################################################################################
 # Generic clustering algorithms and helper functions
 ################################################################################
-def nzc_temporal_filtered(fs, waveform, min_spacing=0.3):
+def filter_min_latency(fs, indices, min_latency):
+    if min_latency is not None:
+        min_latency_samples = min_latency*1e-3*fs
+        indices = indices[indices >= min_latency_samples]
+    return indices
+
+
+def nzc_temporal_filtered(fs, waveform, min_spacing=0.3, min_latency=None):
     nzc_indices = nzc(waveform)
+    nzc_indices = filter_min_latency(fs, nzc_indices, min_latency)
     p_indices = cluster(nzc_indices, waveform[nzc_indices], min_spacing*1e-3*fs)
     return np.asarray(nzc_indices[p_indices])
 
 
-def nzc_noise_filtered(fs, waveform, dev=1.0, min_spacing=0.3):
-
+def nzc_noise_filtered(fs, waveform, dev=1.0, min_spacing=0.3,
+                       min_latency=None):
     min_noise = waveform[:1e-3*fs].std()*dev
 
     p_ind = nzc(waveform)
     n_ind = nzc(-waveform)
+    p_ind = filter_min_latency(fs, p_ind, min_latency)
+    n_ind = filter_min_latency(fs, n_ind, min_latency)
+
     x = np.r_[p_ind, n_ind]
     x.sort()
 
@@ -115,21 +126,18 @@ def find_np(fs, waveform, nzc_algorithm='noise', guess_algorithm='basic', n=5,
     bounds[0] and bounds[1].  The nth index must fall between bounds[n] and
     bounds[n+1].
     '''
-
-    # Get the NZC indices (e.g. the putative guess for the peak indices)
-    if nzc_algorithm_kw is None:
-        nzc_algorithm_kw = {}
-    if nzc_algorithm is None:
-        nzc_indices = nzc(waveform)
-    else:
-        nzc_func = globals()['nzc_%s_filtered' % nzc_algorithm]
-        nzc_indices = nzc_func(fs, waveform, **nzc_algorithm_kw)
-
-    indices = []
-    guess_func = globals()['np_%s' % guess_algorithm]
+    # Process the input arguments
     if guess_algorithm_kw is None:
         guess_algorithm_kw = {}
+    if nzc_algorithm_kw is None:
+        nzc_algorithm_kw = {}
+    nzc_func = globals()['nzc_%s_filtered' % nzc_algorithm]
+    guess_func = globals()['np_%s' % guess_algorithm]
 
+    # Get the NZC indices (e.g. the putative guess for the peak indices)
+    nzc_indices = nzc_func(fs, waveform, **nzc_algorithm_kw)
+
+    indices = []
     if bounds is not None:
         for p in range(n):
             mask = (nzc_indices > bounds[p]) & (nzc_indices < bounds[p+1])

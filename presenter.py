@@ -195,16 +195,21 @@ class WaveformPresenter(object):
             start = len(self.model.waveforms)
         for i in reversed(range(start)):
             cur = self.model.waveforms[i]
+            nzc_algorithm_kw = {'min_latency': cur.min_latency}
             try:
                 prev = self.model.waveforms[i+1]
                 i_peaks = self.getindices(prev, WaveformPoint.PEAK)
                 a_peaks = prev.y[i_peaks]
                 seeds = zip(i_peaks, a_peaks)
+                guess_algorithm_kw = {'seeds': seeds}
                 p_indices = find_np(cur.fs, cur.y, guess_algorithm='seed',
-                                    guess_algorithm_kw={'seeds': seeds},
-                                    nzc_algorithm='noise', n=5)
+                                    nzc_algorithm='noise', n=5,
+                                    guess_algorithm_kw=guess_algorithm_kw,
+                                    nzc_algorithm_kw=nzc_algorithm_kw)
             except IndexError:
-                p_indices = find_np(cur.fs, cur.y, n=5)
+                p_indices = find_np(cur.fs, cur.y, n=5,
+                                    nzc_algorithm='temporal',
+                                    nzc_algorithm_kw=nzc_algorithm_kw)
             for i, v in enumerate(p_indices):
                 self.setpoint(cur, (WaveformPoint.PEAK, i+1), v)
 
