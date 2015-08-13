@@ -19,7 +19,6 @@ class WaveformInteractor(object):
     def Install(self, presenter, view):
         self.presenter = presenter
         self.view = view
-
         # Events to capture
         self.view.canvas.Bind(wx.EVT_KEY_UP, self.__keyup)
         self.view.canvas.Bind(wx.EVT_KEY_DOWN, self.__keydown)

@@ -7,7 +7,7 @@ from presenter import WaveformPresenter
 from interactor import WaveformInteractor
 
 from config import DefaultValueHolder
-import filter_HDF5_file as peakio
+import parsers
 
 
 class PhysiologyNotebook(wx.aui.AuiNotebook):
@@ -43,7 +43,8 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
             else:
                 filter_settings = None
 
-            for model in peakio.load(filename, invert, filter_settings):
+            models = parsers.load(filename, invert, filter_settings)
+            for model in models:
                 view = MatplotlibPanel(self, 'Time (msec)', 'Amplitude (uV)')
                 interactor = WaveformInteractor()
                 WaveformPresenter(model, view, interactor)

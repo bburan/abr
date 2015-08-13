@@ -9,7 +9,7 @@ from numpy import array
 import operator
 from matplotlib.transforms import blended_transform_factory
 
-import filter_HDF5_file as peakio
+import parsers
 
 
 class WaveformPresenter(object):
@@ -60,7 +60,9 @@ class WaveformPresenter(object):
             offset += offset_delta
 
         self.view.subplot.set_autoscale_on(False)
-        self.view.subplot.axis(xmax=8.5, ymin=0)
+
+        # Set the view limits (e.g. 0-8.5 msec)
+        self.view.subplot.axis(xmin=0, xmax=8.5, ymin=0)
         self.view.subplot.set_yticks([])
 
         self.current = len(self.model.waveforms)-1
@@ -77,7 +79,7 @@ class WaveformPresenter(object):
 
     def save(self):
         if self.P and self.N:
-            msg = peakio.save(self.model)
+            msg = parsers.save(self.model)
             self.view.GetTopLevelParent().SetStatusText(msg)
         else:
             msg = "Please identify N1-5 before saving"
