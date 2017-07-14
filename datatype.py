@@ -44,22 +44,12 @@ class Waveform(object):
         self.y = self.signal.mean(axis=0)
         self.y = signal.filtfilt(b, a, self.y)
 
-    def filtered(self, *args, **kwargs):
-        waveform = deepcopy(self)
-        waveform.filter(*args, **kwargs)
-        return waveform
-
     def invert(self):
         self.y = -self.y
 
-    def inverted(self):
-        waveform = deepcopy(self)
-        waveform.invert()
-        return waveform
-
     def stat(self, bounds, func):
-        lb = bounds[0] / ((1/self.fs)*1000)
-        ub = bounds[1] / ((1/self.fs)*1000)
+        lb = int(bounds[0] / ((1/self.fs)*1000))
+        ub = int(bounds[1] / ((1/self.fs)*1000))
         return func(self.y[lb:ub])
 
 

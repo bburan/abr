@@ -19,6 +19,7 @@ The save function must return a message.  If there is an error in saving, throw
 the appropriate exception.
 '''
 
+N_WAVES = 1
 
 import re
 import os
@@ -31,8 +32,6 @@ from datatype import WaveformPoint
 
 
 def save(model):
-    n = 5
-
     filename = model.filename + '-{}kHz-analyzed.txt'.format(model.freq)
     header = 'Threshold (dB SPL): %r\nFrequency (kHz): %.2f\n%s\n%s\n%s\n%s'
     mesg = 'NOTE: Negative latencies indicate no peak'
@@ -41,7 +40,7 @@ def save(model):
 
     col_label_fmt = 'P%d Latency\tP%d Amplitude\tN%d Latency\tN%d Amplitude\t'
     col_labels = ['Level\t1msec Avg\t1msec StDev\t']
-    col_labels.extend([col_label_fmt % (i, i, i, i) for i in range(1, n+1)])
+    col_labels.extend([col_label_fmt % (i, i, i, i) for i in range(1, N_WAVES+1)])
     col_labels = ''.join(col_labels)
     spreadsheet = '\n'.join([waveform_string(w) for w in
                              reversed(model.waveforms)])
@@ -59,7 +58,7 @@ def waveform_string(waveform):
     data = ['%.2f' % waveform.level]
     data.append('%f' % waveform.stat((0, 1), np.average))
     data.append('%f' % waveform.stat((0, 1), np.std))
-    for i in range(1, 6):
+    for i in range(1, N_WAVES+1):
         data.append('%.8f' % waveform.points[(WaveformPoint.PEAK, i)].latency)
         data.append('%.8f' % waveform.points[(WaveformPoint.PEAK, i)].amplitude)
         data.append('%.8f' % waveform.points[(WaveformPoint.VALLEY, i)].latency)

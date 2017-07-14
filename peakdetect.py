@@ -21,7 +21,8 @@ def nzc_temporal_filtered(fs, waveform, min_spacing=0.3, min_latency=None):
 
 def nzc_noise_filtered(fs, waveform, dev=1.0, min_spacing=0.3,
                        min_latency=None):
-    min_noise = waveform[:1e-3*fs].std()*dev
+    ub = int(1e3*fs)
+    min_noise = waveform[:ub].std()*dev
 
     p_ind = nzc(waveform)
     n_ind = nzc(-waveform)

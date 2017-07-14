@@ -9,6 +9,8 @@ from numpy import array
 import operator
 from matplotlib.transforms import blended_transform_factory
 
+N_WAVES = 1
+
 import parsers
 
 
@@ -203,11 +205,11 @@ class WaveformPresenter(object):
                 seeds = zip(i_peaks, a_peaks)
                 guess_algorithm_kw = {'seeds': seeds}
                 p_indices = find_np(cur.fs, cur.y, guess_algorithm='seed',
-                                    nzc_algorithm='noise', n=5,
+                                    nzc_algorithm='noise', n=N_WAVES,
                                     guess_algorithm_kw=guess_algorithm_kw,
                                     nzc_algorithm_kw=nzc_algorithm_kw)
             except IndexError:
-                p_indices = find_np(cur.fs, cur.y, n=5,
+                p_indices = find_np(cur.fs, cur.y, n=N_WAVES,
                                     nzc_algorithm='temporal',
                                     nzc_algorithm_kw=nzc_algorithm_kw)
             for i, v in enumerate(p_indices):
@@ -246,12 +248,12 @@ class WaveformPresenter(object):
                 n_indices = find_np(cur.fs, -cur.y, guess_algorithm='seed',
                                     guess_algorithm_kw={'seeds': seeds},
                                     bounds=bounds, nzc_algorithm='noise',
-                                    nzc_algorithm_kw={'dev': 0.5})
+                                    nzc_algorithm_kw={'dev': 0.5}, n=N_WAVES)
             except IndexError:
                 n_indices = find_np(cur.fs, -cur.y, bounds=bounds,
                                     guess_algorithm='y_fun',
                                     nzc_algorithm='noise',
-                                    nzc_algorithm_kw={'dev': 0.5})
+                                    nzc_algorithm_kw={'dev': 0.5}, n=N_WAVES)
             for i, v in enumerate(n_indices):
                 self.setpoint(cur, (WaveformPoint.VALLEY, i+1), v)
         self._plotupdate = True
