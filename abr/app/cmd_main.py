@@ -1,11 +1,12 @@
 #!python
-
 import argparse
-from frame import PhysiologyFrame
 import wx
+import pkg_resources
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser("analyze.py")
+from abr.frame import PhysiologyFrame
+
+def main():
+    parser = argparse.ArgumentParser("abr_gui")
 
     parser.add_argument('--nofilter', action='store_false', dest='filter',
                         default=True, help='Do not filter waveform')
@@ -29,12 +30,14 @@ if __name__ == '__main__':
 
     options = parser.parse_args()
 
-    app = wx.PySimpleApp(0)
+    app = wx.App(False)
     frame = PhysiologyFrame(options)
     if options.demo:
-        from os.path import dirname, join
-        directory = join(dirname(__file__), 'data')
-        demo = [join(directory, f) for f in ('ABR-52-3', 'CAP-139-5')]
-        frame._nb.load(demo)
-    frame._nb.load(options.filenames)
+        files = [
+            pkg_resources.resource_filename('abr', 'data/ABR-52-3'),
+            pkg_resources.resource_filename('abr', 'data/CAP-139-5'),
+        ]
+        frame._nb.load(files)
+    else:
+        frame._nb.load(options.filenames)
     app.MainLoop()
