@@ -7,7 +7,7 @@ from abr.presenter import WaveformPresenter
 from abr.interactor import WaveformInteractor
 
 from abr.config import DefaultValueHolder
-from abr import parsers
+from abr.parsers import registry
 
 
 class PhysiologyNotebook(wx.aui.AuiNotebook):
@@ -25,25 +25,14 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
         dt = PhysiologyNbFileDropTarget(self)
         self.SetDropTarget(dt)
 
-    def load(self, filenames, invert=False):
+    def load(self, filenames):
         for filename in filenames:
-            self.load_file(filename, invert)
+            self.load_file(filename)
 
-    def load_file(self, filename, invert=False):
+    def load_file(self, filename):
         try:
-            # XOR input
-            invert = self.options.invert ^ invert
-            if self.options.filter:
-                filter_settings = {
-                    'ftype': 'butter',
-                    'lowpass': self.options.lowpass,
-                    'highpass': self.options.highpass,
-                    'order': self.options.order,
-                }
-            else:
-                filter_settings = None
 
-            models = parsers.load(filename, invert, filter_settings)
+            models = registry.load_file(filename, self.options)
             for model in models:
                 view = MatplotlibPanel(self, 'Time (msec)', 'Amplitude (uV)')
                 interactor = WaveformInteractor()
@@ -67,13 +56,9 @@ class PhysiologyNbFileDropTarget(wx.FileDropTarget):
         self.parent = parent
 
     def OnDropFiles(self, x, y, filenames):
-        self.parent.load(filenames, self.invert)
+        self.parent.load(filenames)
 
     def OnEnter(self, x, y, meta):
-        if meta == wx.DragCopy:
-            self.invert = True
-        else:
-            self.invert = False
         return wx.DragMove
 
 
@@ -93,52 +78,29 @@ class PersistentFrame(wx.Frame):
         wx.Frame.__init__(self, parent, size=size, pos=pos, *args, **kwargs)
         if self._window.maximized:
             self.Maximize()
-        self.Bind(wx.EVT_CLOSE, self.OnQuit)
-
-    def OnQuit(self, evt):
-        dlg = wx.MessageDialog(None, 'Are you sure you want to quit?',
-                               'Question',
-                               wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION)
-        response = dlg.ShowModal()
-
-        if response == wx.ID_YES:
-            # Persist the location and size of the window
-            maximized = self.IsMaximized()
-            fpos = self.GetPosition()
-            fsize = self.GetSize()
-            self._window.SetVariables(width=fsize[0], height=fsize[1],
-                                      x=fpos[0], y=fpos[1],
-                                      maximized=int(maximized))
-            self._window.UpdateConfig()
-            self.Destroy()
+        self.CreateStatusBar()
 
 
 class PhysiologyFrame(PersistentFrame):
 
-    def __init__(self, options, name="Waveform Analysis", parent=None, *args,
-                 **kwargs):
+    def __init__(self, options=None, name="Waveform Analysis", parent=None,
+                 *args, **kwargs):
 
         PersistentFrame.__init__(self, name, parent, *args, **kwargs)
+        if options is None:
+            options = {}
         self.options = options
 
         # Initialize menu
         menubar = wx.MenuBar()
         file = wx.Menu()
-        ID_CLOSE_TAB = wx.NewId()
         file.Append(wx.ID_OPEN, 'Open &File\tCtrl+O', 'Open File')
-        file.Append(ID_CLOSE_TAB, 'Close &Tab\tCtrl+W', 'Close Tab')
-        file.AppendSeparator()
-        file.Append(wx.ID_EXIT, '&Quit\tCtrl+Q', 'Quit Application')
-        file.Append(wx.ID_ABOUT, '&About\tCtrl+A', 'About')
         menubar.Append(file, '&File')
 
         self.SetMenuBar(menubar)
 
         # Menu events
         self.Bind(wx.EVT_MENU, self.OnOpenFile, id=wx.ID_OPEN)
-        self.Bind(wx.EVT_MENU, self.OnQuit, id=wx.ID_EXIT)
-        self.Bind(wx.EVT_MENU, self.OnAbout, id=wx.ID_ABOUT)
-        self.Bind(wx.EVT_MENU, self.OnCloseTab, id=ID_CLOSE_TAB)
 
         # Initialize manager and panels
         self.__mgr = wx.aui.AuiManager()
@@ -149,28 +111,11 @@ class PhysiologyFrame(PersistentFrame):
                            MaximizeButton(True))
         self.__mgr.Update()
 
-        self.CreateStatusBar()
         self.Show()
-
-    def OnCloseTab(self, evt):
-        if self._nb.PageCount:
-            self._nb.DeletePage(self._nb.GetSelection())
-
-    def OnAbout(self, evt):
-        info = wx.AboutDialogInfo()
-        info.Name = "Evoked Waveform Analysis"
-        info.Version = "1.0"
-        info.Copyright = "(C) 2012 Brad Buran"
-        info.WebSite = "http://bradburan.com"
-        wx.AboutBox(info)
 
     def OnOpenFile(self, evt):
         style = wx.FD_OPEN | wx.FD_MULTIPLE | wx.FD_CHANGE_DIR
-        if self.options.directory is not None:
-            dlg = wx.FileDialog(self, "Choose files", style=style,
-                                defaultDir=self.options.directory)
-        else:
-            dlg = wx.FileDialog(self, "Choose files", style=style)
+        dlg = wx.FileDialog(self, "Choose files", style=style)
         if dlg.ShowModal() == wx.ID_OK:
             self._nb.load(dlg.GetFilenames())
         dlg.Destroy()

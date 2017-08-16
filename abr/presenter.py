@@ -12,12 +12,12 @@ from abr.datatype import WaveformPoint
 
 N_WAVES = 1
 
-from abr import parsers
+from abr.parsers import registry
 
 
 class WaveformPresenter(object):
 
-    def __init__(self, model, view, interactor, options=None):
+    def __init__(self, model, view, interactor, options=None, app=None):
         self._toggle = {}
         self._iterator = {}
         self._redrawflag = True
@@ -26,7 +26,8 @@ class WaveformPresenter(object):
         self.plots = []
         self.N = False
         self.P = False
-        interactor.Install(self, view)
+        self.app = app
+        interactor.install(self, view)
         if model is not None:
             self.load(model, options)
 
@@ -82,8 +83,9 @@ class WaveformPresenter(object):
 
     def save(self):
         if self.P and self.N:
-            msg = parsers.save(self.model)
+            msg = registry.save(self.model)
             self.view.GetTopLevelParent().SetStatusText(msg)
+            self.close()
         else:
             msg = "Please identify N1-5 before saving"
             wx.MessageBox(msg, "Error")
@@ -258,6 +260,10 @@ class WaveformPresenter(object):
             for i, v in enumerate(n_indices):
                 self.setpoint(cur, (WaveformPoint.VALLEY, i+1), v)
         self._plotupdate = True
+
+    def close(self):
+        if self.app is not None:
+            self.app.ExitMainLoop()
 
     def setpoint(self, waveform, point, index):
         try:

@@ -146,7 +146,7 @@ latencies = {
     6000: 1.8,
 }
 
-def load(fname, invert=False, filter=None, abr_window=8.5e-3):
+def load(fname, filter=None, abr_window=8.5e-3):
     with open(fname) as fh:
         line = fh.readline()
         if not line.startswith('Identifier:'):
@@ -155,7 +155,6 @@ def load(fname, invert=False, filter=None, abr_window=8.5e-3):
     info = info[info.channel == 1]
     fs = 1/(info.iloc[0]['smp. period']*1e-6)
     series = []
-    kw = dict(invert=invert, filter=None)
     for frequency, f_info in info.groupby('stim. freq.'):
         signal = load_waveforms(fname, f_info)
         signal = signal[signal.index >= 0]
@@ -164,7 +163,7 @@ def load(fname, invert=False, filter=None, abr_window=8.5e-3):
         for i, row in f_info.iterrows():
             s = signal[i].values[np.newaxis]
             waveform = ABRWaveform(fs, s, row['level'], min_latency=min_latency,
-                                   **kw)
+                                   filter=filter)
             waveforms.append(waveform)
 
         s = ABRSeries(waveforms, frequency/1e3)

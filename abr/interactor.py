@@ -6,6 +6,7 @@ from abr.datatype import WaveformPoint
 class WaveformInteractor(object):
 
     KEYS = {
+        wx.WXK_ESCAPE:  'escape',
         wx.WXK_LEFT:    'left',
         wx.WXK_RIGHT:   'right',
         wx.WXK_DOWN:    'down',
@@ -17,7 +18,7 @@ class WaveformInteractor(object):
         388:            'plus',
     }
 
-    def Install(self, presenter, view):
+    def install(self, presenter, view):
         self.presenter = presenter
         self.view = view
         self.view.canvas.Bind(wx.EVT_KEY_UP, self.__keyup)
@@ -52,6 +53,9 @@ class WaveformInteractor(object):
                 mname = type + chr(keycode).lower()
                 if hasattr(self, mname):
                     getattr(self, mname)()
+
+    def kd_escape(self, evt):
+        self.presenter.close()
 
     def kd_up(self, evt):
         '''

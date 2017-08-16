@@ -49,6 +49,7 @@ setup(
     entry_points={
         'console_scripts': [
             'abr_gui = abr.app.cmd_main:main',
+            'abr_loop = abr.app.cmd_main_loop:main',
         ]
     },
 )

@@ -25,33 +25,14 @@ import re
 import os
 import time
 
+import pkgutil
+import importlib
+
+
 import pandas as pd
 import numpy as np
 
 from ..datatype import WaveformPoint
-
-
-def save(model):
-    filename = model.filename + '-{}kHz-analyzed.txt'.format(model.freq)
-    header = 'Threshold (dB SPL): %r\nFrequency (kHz): %.2f\n%s\n%s\n%s\n%s'
-    mesg = 'NOTE: Negative latencies indicate no peak'
-    # Assume that all waveforms were filtered identically
-    filters = filter_string(model.waveforms[-1])
-
-    col_label_fmt = 'P%d Latency\tP%d Amplitude\tN%d Latency\tN%d Amplitude\t'
-    col_labels = ['Level\t1msec Avg\t1msec StDev\t']
-    col_labels.extend([col_label_fmt % (i, i, i, i) for i in range(1, N_WAVES+1)])
-    col_labels = ''.join(col_labels)
-    spreadsheet = '\n'.join([waveform_string(w) for w in
-                             reversed(model.waveforms)])
-    header = header % (model.threshold, model.freq, filters, mesg, col_labels,
-                       spreadsheet)
-
-    f = safeopen(filename)
-    f.writelines(header)
-    f.close()
-
-    return 'Saved data to %s' % filename
 
 
 def waveform_string(waveform):
@@ -72,29 +53,9 @@ def filter_string(waveform):
     if getattr(waveform, '_zpk', None) is None:
         return header + ' No filtering'
     else:
-        templ = 'Pass %d -- z: %r, p: %r, k: %r'
-        filt = [templ % (i, z, p, k) for i, (z, p, k)
-                in enumerate(waveform._zpk)]
+        t = 'Pass %d -- z: %r, p: %r, k: %r'
+        filt = [t % (i, z, p, k) for i, (z, p, k) in enumerate(waveform._zpk)]
         return header + '\n' + '\n'.join(filt)
-
-
-def safeopen(file):
-    '''Checks to see if a file already exists.  If it does, it is archived
-    using the earlier of the file creation time or the file modified time.  In
-    my experience, the file creation time changes when the file is copied to a
-    new filesystem; however, the file modified time usually is not updated on
-    this copy.  Another complication is that Windows does not change the file
-    creation time if the same filename is deleted and then recreated within a
-    certain period.  We only use file modification time.
-
-    '''
-    if os.path.exists(file):
-        base, fname = os.path.split(file)
-        filetime = os.path.getmtime(file)
-        filestring = time.strftime('%Y-%m-%d-%H-%M-%S-', time.gmtime(filetime))
-        new_fname = os.path.join(base, filestring+fname)
-        os.rename(file, new_fname)
-    return open(file, 'w')
 
 
 def load_analysis(fname):
@@ -118,28 +79,61 @@ class ParserRegistry(object):
     def register(self, parser):
         self.parsers.append(parser)
 
-    def load_file(self, filename, *args, **kwargs):
+    def load_file(self, filename, options):
+        if options.filter:
+            filter_settings = {
+                'ftype': 'butter',
+                'lowpass': options.lowpass,
+                'highpass': options.highpass,
+                'order': options.order,
+            }
+        else:
+            filter_settings = None
+
         for parser in self.parsers:
             try:
-                return parser(filename, *args, **kwargs)
+                return parser.load(filename, filter_settings)
             except Exception as e:
                 pass
         else:
             raise IOError('Unable to parse file')
 
+    def save(self, model):
+        filename = model.filename + '-{}kHz-analyzed.txt'.format(model.freq)
+        header = 'Threshold (dB SPL): %r\nFrequency (kHz): %.2f\n%s\n%s\n%s\n%s'
+        mesg = 'NOTE: Negative latencies indicate no peak'
+        # Assume that all waveforms were filtered identically
+        filters = filter_string(model.waveforms[-1])
 
-parsers = ParserRegistry()
-load = parsers.load_file
+        col_label_fmt = 'P%d Latency\tP%d Amplitude\tN%d Latency\tN%d Amplitude\t'
+        col_labels = ['Level\t1msec Avg\t1msec StDev\t']
+        col_labels.extend([col_label_fmt % (i, i, i, i) for i in range(1, N_WAVES+1)])
+        col_labels = ''.join(col_labels)
+        spreadsheet = '\n'.join([waveform_string(w) for w in
+                                reversed(model.waveforms)])
+        content = header % (model.threshold, model.freq, filters, mesg,
+                            col_labels, spreadsheet)
+
+        with open(filename, 'w') as fh:
+            fh.writelines(content)
+
+        return 'Saved data to %s' % filename
+
+    def list_files(self, dirname):
+        files = []
+        for parser in self.parsers:
+            if hasattr(parser, 'list_files'):
+                files.extend(parser.list_files(dirname))
+        return files
 
 
-import pkgutil
-import importlib
+registry = ParserRegistry()
+
 
 for loader, module_name, is_pkg in  pkgutil.walk_packages(__path__):
     try:
         module = loader.find_module(module_name).load_module(module_name)
         if hasattr(module, 'load'):
-            parsers.register(module.load)
+            registry.register(module)
     except ImportError:
-        print(module)
         pass

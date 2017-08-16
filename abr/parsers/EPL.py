@@ -5,7 +5,7 @@ import io
 from abr.datatype import ABRWaveform, ABRSeries
 
 
-def load(fname, invert=False, filter=None):
+def load(fname, filter=None):
     with io.open(fname, encoding='ISO-8859-1') as f:
         line = f.readline()
         if not line.startswith(':RUN-'):
@@ -40,7 +40,7 @@ def load(fname, invert=False, filter=None):
                     # Add new dimension to signal since the updated ABR program
                     # now takes individual waveforms.
                     waveform = ABRWaveform(fs, signal[np.newaxis], level,
-                                           invert=invert, filter=filter)
+                                           filter=filter)
                     waveforms.append(waveform)
 
             series = ABRSeries(waveforms, frequency)
