@@ -43,7 +43,7 @@ def is_processed(filename, frequency, options):
 
 
 def find_unprocessed(dirname, options):
-    wildcard = os.path.join(dirname, '*ABR.hdf5')
+    wildcard = os.path.join(dirname, '*ABR*.hdf5')
     unprocessed = []
     for filename in glob.glob(wildcard):
         for frequency in get_frequencies(filename):
