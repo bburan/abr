@@ -10,6 +10,14 @@ from abr.config import DefaultValueHolder
 from abr.parsers import registry
 
 
+def create_presenter(model, frame, options, app=None):
+    view = MatplotlibPanel(frame, 'Time (msec)', 'Amplitude (uV)')
+    interactor = WaveformInteractor()
+    presenter = WaveformPresenter(view, interactor, options, app)
+    presenter.load(model)
+    return presenter
+
+
 class PhysiologyNotebook(wx.aui.AuiNotebook):
 
     def __init__(self, options, parent, id=wx.ID_ANY, pos=wx.DefaultPosition,
@@ -31,14 +39,11 @@ class PhysiologyNotebook(wx.aui.AuiNotebook):
 
     def load_file(self, filename):
         try:
-
-            models = registry.load_file(filename, self.options)
+            models = registry.load(filename, self.options)
             for model in models:
-                view = MatplotlibPanel(self, 'Time (msec)', 'Amplitude (uV)')
-                interactor = WaveformInteractor()
-                WaveformPresenter(model, view, interactor)
+                presenter = create_presenter(model, self, self.options)
                 name = '%s %.2f kHz' % (os.path.split(filename)[1], model.freq)
-                self.AddPage(view, name, select=True)
+                self.AddPage(presenter.view, name, select=True)
         except IOError, e:
             dlg = wx.MessageDialog(self, str(e), 'File Error',
                                    wx.OK | wx.ICON_ERROR)

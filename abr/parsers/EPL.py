@@ -5,7 +5,7 @@ import io
 from abr.datatype import ABRWaveform, ABRSeries
 
 
-def load(fname, filter=None):
+def load(fname, filter=None, frequencies=None):
     with io.open(fname, encoding='ISO-8859-1') as f:
         line = f.readline()
         if not line.startswith(':RUN-'):

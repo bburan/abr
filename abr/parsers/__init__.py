@@ -73,13 +73,15 @@ def load_analysis(fname):
 
 class ParserRegistry(object):
 
+    filename_template = '{filename}-{frequency}kHz-{user}analyzed.txt'
+
     def __init__(self):
-        self.parsers = []
+        self.parsers = {}
 
     def register(self, parser):
-        self.parsers.append(parser)
+        self.parsers[parser.__name__] = parser
 
-    def load_file(self, filename, options):
+    def load(self, filename, options, frequencies=None):
         if options.filter:
             filter_settings = {
                 'ftype': 'butter',
@@ -90,16 +92,16 @@ class ParserRegistry(object):
         else:
             filter_settings = None
 
-        for parser in self.parsers:
-            try:
-                return parser.load(filename, filter_settings)
-            except Exception as e:
-                pass
-        else:
-            raise IOError('Unable to parse file')
+        parser = self.parsers[options.parser]
+        return parser.load(filename, filter_settings, frequencies=frequencies)
 
-    def save(self, model):
-        filename = model.filename + '-{}kHz-analyzed.txt'.format(model.freq)
+    def get_save_filename(self, filename, frequency, options):
+        user_name = options.user + '-' if options.user else ''
+        return self.filename_template.format(filename=filename,
+                                             frequency=frequency,
+                                             user=user_name)
+
+    def save(self, model, options):
         header = 'Threshold (dB SPL): %r\nFrequency (kHz): %.2f\n%s\n%s\n%s\n%s'
         mesg = 'NOTE: Negative latencies indicate no peak'
         # Assume that all waveforms were filtered identically
@@ -114,17 +116,15 @@ class ParserRegistry(object):
         content = header % (model.threshold, model.freq, filters, mesg,
                             col_labels, spreadsheet)
 
+        filename = self.get_save_filename(model.filename, model.freq, options)
         with open(filename, 'w') as fh:
             fh.writelines(content)
 
         return 'Saved data to %s' % filename
 
-    def list_files(self, dirname):
-        files = []
-        for parser in self.parsers:
-            if hasattr(parser, 'list_files'):
-                files.extend(parser.list_files(dirname))
-        return files
+    def find_unprocessed(self, dirname, options):
+        parser = self.parsers[options.parser]
+        return parser.find_unprocessed(dirname, options)
 
 
 registry = ParserRegistry()

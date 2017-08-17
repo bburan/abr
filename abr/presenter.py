@@ -17,7 +17,7 @@ from abr.parsers import registry
 
 class WaveformPresenter(object):
 
-    def __init__(self, model, view, interactor, options=None, app=None):
+    def __init__(self, view, interactor, options=None, app=None):
         self._toggle = {}
         self._iterator = {}
         self._redrawflag = True
@@ -27,17 +27,13 @@ class WaveformPresenter(object):
         self.N = False
         self.P = False
         self.app = app
-        interactor.install(self, view)
-        if model is not None:
-            self.load(model, options)
-
-    def load(self, model, options=None):
         self.options = options
+        interactor.install(self, view)
+
+    def load(self, model):
         self.model = model
         if self.model.threshold is None:
             self.guess_p()
-            if self.options is not None and self.options.nauto:
-                self.guess_n()
         else:
             self.N = True
             self.P = True
@@ -83,7 +79,7 @@ class WaveformPresenter(object):
 
     def save(self):
         if self.P and self.N:
-            msg = registry.save(self.model)
+            msg = registry.save(self.model, self.options)
             self.view.GetTopLevelParent().SetStatusText(msg)
             self.close()
         else:
