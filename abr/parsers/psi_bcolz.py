@@ -80,7 +80,7 @@ class ABRFile:
         c_index = np.round(c_index).astype('int64')
         self._c_index = c_index
 
-    def _get_epochs(self, **kwargs):
+    def _get_epochs(self, reject_threshold=2.5, **kwargs):
         queries = ['({} == {})'.format(k, v) for k, v in kwargs.items()]
         query = ' & '.join(queries)
         epochs = []
@@ -88,6 +88,8 @@ class ABRFile:
             lb = self._e_index[row]
             ub = lb + self._e_size[row]
             epoch = self._erp[lb:ub]
+            if np.any(np.abs(epoch) >= reject_threshold):
+                continue
             epochs.append(epoch[np.newaxis])
         return np.concatenate(epochs, axis=0)
 

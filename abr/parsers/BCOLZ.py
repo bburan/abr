@@ -20,7 +20,6 @@ def load(filename, filter=None, abr_window=8.5e-3, frequencies=None):
             continue
         waveforms = []
         for (_, level), epochs in f_group.iteritems():
-            print(epochs.shape, cutoff)
             epochs = epochs[..., :cutoff]
             waveform = ABRWaveform(fh.fs, epochs, level, filter=filter,
                                    min_latency=1)
@@ -32,7 +31,7 @@ def load(filename, filter=None, abr_window=8.5e-3, frequencies=None):
 
 
 def get_frequencies(filename):
-    fh = psi_abr.load(filename)
+    fh = psi_bcolz.load(filename)
     counts = fh.count_trials('frequency')
     return counts.index.values
 
@@ -47,7 +46,12 @@ def find_unprocessed(dirname, options):
     wildcard = os.path.join(dirname, '*abr*')
     unprocessed = []
     for filename in glob.glob(wildcard):
-        for frequency in get_frequencies(filename):
-            if not is_processed(filename, frequency*1e-3, options):
-                unprocessed.append((filename, frequency))
+        if not os.path.isdir(filename):
+            continue
+        try:
+            for frequency in get_frequencies(filename):
+                if not is_processed(filename, frequency*1e-3, options):
+                    unprocessed.append((filename, frequency))
+        except:
+            print('Unable to read file', filename)
     return unprocessed
