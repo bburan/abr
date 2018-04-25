@@ -105,7 +105,7 @@ class WaveformPoint(object):
 class ABRWaveform(Waveform):
 
     def __init__(self, fs, signal, level, series=None, invert=False,
-                 filter=False, min_latency=None):
+                 filter=None, min_latency=None):
         super(ABRWaveform, self).__init__(fs, signal, invert, filter)
         self.level = level
         self.series = series

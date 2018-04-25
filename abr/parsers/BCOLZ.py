@@ -12,22 +12,35 @@ def load(filename, filter=None, abr_window=8.5e-3, frequencies=None):
     fh = psi_bcolz.load(filename)
     fs = fh.fs
     cutoff = int(round(abr_window*fs))
-    groups = fh.get_epoch_groups('frequency', 'level')
+    reject_threshold = fh.trial_log.at[0, 'reject_threshold']
 
-    frequency_set = []
-    for frequency, f_group in groups.groupby(level='frequency'):
-        if frequencies is not None and not frequency in frequencies:
-            continue
-        waveforms = []
-        for (_, level), epochs in f_group.iteritems():
-            epochs = epochs[..., :cutoff]
-            waveform = ABRWaveform(fh.fs, epochs, level, filter=filter,
-                                   min_latency=1)
-            waveforms.append(waveform)
+    counts = fh.count_epochs_combined_polarity(['frequency', 'level'])
+    groups = counts.index.tolist()
+
+    waveforms = {}
+
+    signal_filter = {
+        'order': filter['order'],
+        'fl': filter['highpass'],
+        'fh': filter['lowpass'],
+        'ftype': filter['ftype'],
+        'btype': 'band',
+    }
+
+    for frequency, level in groups:
+        trial_filter = {'frequency': frequency, 'level': level}
+        epochs = fh.get_epochs_combined_polarity(trial_filter,
+                                                 reject_threshold=reject_threshold,
+                                                 signal_filter=signal_filter)
+        waveform = ABRWaveform(fh.fs, epochs, level, min_latency=0.5)
+        waveforms.setdefault(frequency, []).append(waveform)
+
+    series_set = []
+    for frequency, waveforms in waveforms.items():
         series = ABRSeries(waveforms, frequency*1e-3)
         series.filename = filename
-        frequency_set.append(series)
-    return frequency_set
+        series_set.append(series)
+    return series_set
 
 
 def get_frequencies(filename):
