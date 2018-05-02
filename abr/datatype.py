@@ -13,16 +13,15 @@ import operator
 
 class Waveform(object):
 
-    def __init__(self, fs, signal, invert=False, filter=False):
+    def __init__(self, fs, signal, filter=None, t0=0):
+        self.t0 = t0
         self.fs = fs
         # Time in msec
-        self.x = np.arange(signal.shape[-1]) * 1000.0 / self.fs
+        self.x = np.arange(signal.shape[-1]) * 1000.0 / self.fs + self.t0
         # Voltage in microvolts
         self.signal = signal
         self.y = self.signal.mean(axis=0)
 
-        if invert:
-            self.invert()
         if filter is not None:
             self.filter(**filter)
 
@@ -44,12 +43,11 @@ class Waveform(object):
         self.y = self.signal.mean(axis=0)
         self.y = signal.filtfilt(b, a, self.y)
 
-    def invert(self):
-        self.y = -self.y
-
     def stat(self, bounds, func):
-        lb = int(bounds[0] / ((1/self.fs)*1000))
-        ub = int(bounds[1] / ((1/self.fs)*1000))
+        tlb = bounds[0]-self.t0
+        tub = bounds[1]-self.t0
+        lb = int(round(tlb / ((1/self.fs)*1000)))
+        ub = int(round(tub / ((1/self.fs)*1000)))
         return func(self.y[lb:ub])
 
 
@@ -104,9 +102,9 @@ class WaveformPoint(object):
 
 class ABRWaveform(Waveform):
 
-    def __init__(self, fs, signal, level, series=None, invert=False,
-                 filter=None, min_latency=None):
-        super(ABRWaveform, self).__init__(fs, signal, invert, filter)
+    def __init__(self, fs, signal, level, series=None, filter=None,
+                 min_latency=None, t0=0):
+        super(ABRWaveform, self).__init__(fs, signal, filter, t0)
         self.level = level
         self.series = series
         self.points = {}
