@@ -133,7 +133,6 @@ registry = ParserRegistry()
 for loader, module_name, is_pkg in  pkgutil.walk_packages(__path__):
     try:
         module = loader.find_module(module_name).load_module(module_name)
-        print(module)
         if hasattr(module, 'load'):
             registry.register(module)
     except ImportError:

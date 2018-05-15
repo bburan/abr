@@ -7,7 +7,7 @@ import pandas as pd
 from abr.datatype import ABRWaveform, ABRSeries
 
 
-template = 'ABR -1.0ms to 9.0ms with {:.0f}Hz to {:.0f}Hz filter average waveform.csv'
+template = 'ABR -1.0ms to 9.0ms with {:.0f}Hz to {:.0f}Hz filter average waveforms.csv'
 
 
 def get_filename(base_directory, filter_settings):
@@ -23,6 +23,11 @@ def load(base_directory, filter_settings=None, frequencies=None):
     fs = np.mean(np.diff(data.columns.values)**-1)
     waveforms = {}
     for (frequency, level), w in data.iterrows():
+        frequency = float(frequency)
+        level = float(level)
+        if frequencies is not None:
+            if frequency not in frequencies:
+                continue
         frequency = float(frequency)*1e-3
         level = float(level)
         stack = waveforms.setdefault(frequency, [])
