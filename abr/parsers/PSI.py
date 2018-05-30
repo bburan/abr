@@ -7,12 +7,18 @@ import pandas as pd
 from abr.datatype import ABRWaveform, ABRSeries
 
 
-template = 'ABR -1.0ms to 9.0ms with {:.0f}Hz to {:.0f}Hz filter average waveforms.csv'
+base_template = 'ABR -1.0ms to 9.0ms{}average waveforms.csv'
+nofilter_template = base_template.format(' ')
+filter_template = base_template.format(' with {:.0f}Hz to {:.0f}Hz filter ')
 
 
 def get_filename(base_directory, filter_settings):
-    filename = template.format(filter_settings['highpass'],
-                               filter_settings['lowpass'])
+    if filter_settings is not None:
+        filename = filter_template.format(
+            filter_settings['highpass'],
+            filter_settings['lowpass'])
+    else:
+        filename = nofilter_template
     return os.path.join(base_directory, filename)
 
 
