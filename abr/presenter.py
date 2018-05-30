@@ -10,7 +10,7 @@ from abr.abrpanel import WaveformPlot
 from abr.peakdetect import find_np, iterator_np
 from abr.datatype import WaveformPoint
 
-N_WAVES = 1
+N_WAVES = 5
 
 from abr.parsers import registry
 
