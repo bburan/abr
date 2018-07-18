@@ -18,10 +18,10 @@ class StylePlot(object):
     def _setstyle(self, plot, style):
         if isinstance(plot, list):
             for p in plot:
-                for k, v in style.iteritems():
+                for k, v in style.items():
                     getattr(p, 'set_' + k)(v)
         else:
-            for k, v in style.iteritems():
+            for k, v in style.items():
                 getattr(plot, 'set_' + k)(v)
 
     def _get_current(self):
@@ -131,21 +131,21 @@ class WaveformPlot(StylePlot):
         'zorder':       20,
     }
     PLOT = {
-        'c':            (0.6, 0.6, 0.6),
+        'c':            (0, 0, 0),
         'linewidth':    2,
         'linestyle':    '-',
         'zorder':       10,
     }
     CUR_SUBTH_PLOT = {
-        'c':            (0.3, 0.3, 0.3),
+        'c':            (0.75, 0.75, 0.75),
         'linewidth':    4,
-        'linestyle':    ':',
+        'linestyle':    '-',
         'zorder':       10,
     }
     SUBTH_PLOT = {
-        'c':            (0.3, 0.3, 0.3),
+        'c':            (0.75, 0.75, 0.75),
         'linewidth':    2,
-        'linestyle':    ':',
+        'linestyle':    '-',
         'zorder':       10,
     }
 
@@ -170,7 +170,7 @@ class WaveformPlot(StylePlot):
         self.t_norm = transforms.BboxTransform(boxin, boxout) + self.t_reg
 
         # Create the plot
-        self.plot, = self.axis.plot(self.waveform.x, self.waveform.y)
+        self.plot, = self.axis.plot(self.waveform.x, self.waveform.y, 'k-')
         self.update()
 
     def __del__(self):

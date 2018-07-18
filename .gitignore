@@ -1,5 +1,7 @@
+__enamlcache__/
 
 # Created by https://www.gitignore.io/api/vim,python,jupyternotebook
+#
 
 ### JupyterNotebook ###
 .ipynb_checkpoints

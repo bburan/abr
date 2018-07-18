@@ -26,7 +26,6 @@ package_data = {
 }
 
 requires = [
-    'wxpython',
     'numpy',
     'matplotlib',
     'scipy',

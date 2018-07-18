@@ -150,7 +150,7 @@ def load(fname, filter=None, abr_window=8.5e-3):
     with open(fname) as fh:
         line = fh.readline()
         if not line.startswith('Identifier:'):
-            raise IOError, 'Unsupported file format'
+            raise IOError('Unsupported file format')
     info = load_metadata(fname)
     info = info[info.channel == 1]
     fs = 1/(info.iloc[0]['smp. period']*1e-6)

@@ -1,195 +1,198 @@
-# vim: set fileencoding=utf-8
-
-import wx
-from numpy import concatenate
-from numpy import array
+import numpy as np
 import operator
 
-from matplotlib.transforms import blended_transform_factory
-from abr.abrpanel import WaveformPlot
-from abr.peakdetect import find_np, iterator_np
-from abr.datatype import WaveformPoint
+from atom.api import (Atom, Typed, Dict, List, Bool, Int, Float, Tuple,
+                      Property, Value)
 
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
+from matplotlib.transforms import blended_transform_factory
+
+from abr.abrpanel import WaveformPlot
+from abr.datatype import ABRSeries, WaveformPoint
+from abr.peakdetect import find_np, iterator_np
 from abr.parsers import registry
 
 
-class WaveformPresenter(object):
+def plot_model(axes, model):
+    n = len(model.waveforms)
+    offset_delta = 0.8/n
+    offset = 0.05
+    plots = []
 
-    def __init__(self, view, interactor, options=None, app=None):
-        self._toggle = {}
-        self._iterator = {}
-        self._redrawflag = True
-        self._plotupdate = True
-        self.view = view
-        self.plots = []
-        self.N = False
-        self.P = False
-        self.app = app
+    bounds = []
+    text_trans = blended_transform_factory(axes.figure.transFigure,
+                                           axes.transAxes)
+    for waveform in model.waveforms:
+        plot = WaveformPlot(waveform, axes, offset)
+        bounds.append(abs(waveform.y.min()))
+        bounds.append(abs(waveform.y.max()))
+        plots.append(plot)
+        text = axes.text(0.02, offset, str(waveform.level))
+
+        # For some reason if we try to set a transform in the call to
+        # figure.text, it does not get set, so we set it after the text
+        # object has been created.
+        text.set_transform(text_trans)
+        offset += offset_delta
+
+    axes.set_autoscale_on(False)
+
+    # Set the view limits (e.g. 0-8.5 msec)
+    #self.view.subplot.axis(xmin=0, xmax=8.5, ymin=0)
+    axes.set_yticks([])
+    return plots, bounds
+
+
+class WaveformPresenter(Atom):
+
+    figure = Typed(Figure, {})
+    axes = Typed(Axes)
+    options = Typed(object)
+    model = Typed(ABRSeries)
+
+    current = Property()
+    toggle = Property()
+    scale = Property()
+    normalized = Property()
+
+    iterator = Value()
+
+    _normalized = Bool()
+    _current = Int()
+    _toggle = Value()
+    _scale = Float()
+    _reg_scale = Float()
+    _norm_scale = Float()
+    plots = List()
+    N = Bool(False)
+    P = Bool(False)
+
+    def _default_axes(self):
+        axes = self.figure.add_axes([0.1, 0.1, 0.8, 0.8])
+        font = {'fontsize': 14, 'fontweight': 'bold'}
+        axes.set_xlabel('Time (msec)', font)
+        axes.set_ylabel('Amplitude (uV)', font)
+        axes.set_yticks([])
+        return axes
+
+    def __init__(self, options):
         self.options = options
-        interactor.install(self, view)
 
     def load(self, model):
+        self.axes.clear()
         self.model = model
-        if self.model.threshold is None:
-            self.guess_p()
-        else:
-            self.N = True
-            self.P = True
-
-        n = len(self.model.waveforms)
-        offset_delta = 0.8/n
-        offset = 0.05
-        self.plots = []
-
-        bounds = []
-        text_trans = blended_transform_factory(self.view.figure.transFigure,
-                                               self.view.subplot.transAxes)
-        for waveform in self.model.waveforms:
-            plot = WaveformPlot(waveform, self.view.subplot, offset)
-            bounds.append(abs(waveform.y.min()))
-            bounds.append(abs(waveform.y.max()))
-            self.plots.append(plot)
-            text = self.view.figure.text(0.02, offset, str(waveform.level))
-
-            # For some reason if we try to set a transform in the call to
-            # figure.text, it does not get set, so we set it after the text
-            # object has been created.
-            text.set_transform(text_trans)
-            offset += offset_delta
-
-        self.view.subplot.set_autoscale_on(False)
-
-        # Set the view limits (e.g. 0-8.5 msec)
-        #self.view.subplot.axis(xmin=0, xmax=8.5, ymin=0)
-        self.view.subplot.set_yticks([])
-
+        self.plots, bounds = plot_model(self.axes, self.model)
+        self.N = False
+        self.P = False
+        self.toggle = None
+        self.iterator = None
+        self.normalized = False
         self.current = len(self.model.waveforms)-1
         self.update_labels()
         self._reg_scale = sum(bounds)/2
-        self._norm_scale = 1*n
+        self._norm_scale = 1*len(self.plots)
         self.scale = self._reg_scale
-
-    def delete(self):
-        self.plots[self.current].remove()
-        del self.plots[self.current]
-        del self.model.waveforms[self.current]
-        self._plotupdate = True
+        try:
+            self.figure.canvas.draw()
+        except:
+            pass
 
     def save(self):
-        if self.P and self.N:
-            msg = registry.save(self.model, self.options)
-            self.view.GetTopLevelParent().SetStatusText(msg)
-            self.close()
-        else:
-            msg = "Please identify N1-5 before saving"
-            wx.MessageBox(msg, "Error")
+        if  np.isnan(self.model.threshold):
+            raise ValueError('Threshold not set')
+        if not self.P or not self.N:
+            raise ValueError('Waves not identified')
+        msg = registry.save(self.model, self.options)
+        self.close()
 
     def update(self):
-        if self._plotupdate:
-            self._plotupdate = False
-            self._redrawflag = True
-            for p in self.plots:
-                p.update()
-        if self._redrawflag:
-            self._redrawflag = False
-            self.view.canvas.draw()
-
-    def get_current(self):
+        self.iterator = self.get_iterator()
+        for p in self.plots:
+            p.update()
         try:
-            return self._current
-        except AttributeError:
-            return -1
+            self.axes.figure.canvas.draw()
+        except:
+            pass
 
-    def set_current(self, value):
+
+    def _get_current(self):
+        return self._current
+
+    def _set_current(self, value):
         if value < 0 or value > len(self.model.waveforms)-1:
-            pass
-        elif value == self.current:
-            pass
-        else:
-            self.iterator = None
-            try:
-                self.plots[self.current].current = False
-            except IndexError:
-                pass
-            self.plots[value].current = True
-            self._redrawflag = True
-            self._current = value
+            return
+        if value == self.current:
+            return
 
-    current = property(get_current, set_current, None, None)
-
-    def get_scale(self):
         try:
-            return self._scale
-        except AttributeError:
-            return 10
+            self.plots[self.current].current = False
+            self.plots[self.current].toggled = None
+        except IndexError:
+            pass
+        self.plots[value].current = True
+        self.plots[value].toggle = self.toggle
+        self._current = value
+        self.update()
 
-    def set_scale(self, value):
+    def _get_scale(self):
+        return self._scale
+
+    def _set_scale(self, value):
         if value < 0:
             return
         self._scale = value
-        self.view.subplot.axis(ymin=0, ymax=value)
+        self.axes.axis(ymin=0, ymax=value)
         self.update_labels()
-        self._redrawflag = True
-
-    scale = property(get_scale, set_scale, None, None)
+        self.update()
 
     def update_labels(self):
-        if self.normalized:
-            self.view.set_title('normalized')
-        else:
-            self.view.set_title('raw')
+        label = 'normalized' if self.normalized else 'raw'
+        self.axes.set_title(label)
 
-    def get_normalized(self):
-        try:
-            return self._normalized
-        except AttributeError:
-            return False
+    def _get_normalized(self):
+        return self._normalized
 
-    def set_normalized(self, value):
+    def _set_normalized(self, value):
         if value == self.normalized:
-            pass
+            return
+
+        self._normalized = value
+        if self._normalized:
+            self._reg_scale, self.scale = self.scale, self._norm_scale
         else:
-            self._normalized = value
-            if self._normalized:
-                self._reg_scale = self.scale
-                self.scale = self._norm_scale
-            else:
-                self._norm_scale = self.scale
-                self.scale = self._reg_scale
+            self._norm_scale, self.scale = self.scale, self._reg_scale
 
-            for p in self.plots:
-                p.normalized = value
-                p.update()
-            self._plotupdate = True
-            self.update_labels()
+        for p in self.plots:
+            p.normalized = value
+            p.update()
+        self.update_labels()
+        self.update()
 
-    normalized = property(get_normalized, set_normalized)
+    def set_suprathreshold(self):
+        self.model.threshold = -np.inf
+        self.update()
+
+    def set_subthreshold(self):
+        self.model.threshold = np.inf
+        self.update()
 
     def set_threshold(self):
         self.model.threshold = self.model.waveforms[self.current].level
-        self._plotupdate = True
+        self.update()
 
-    def get_toggle(self):
-        try:
-            return self._toggle[self.current]
-        except AttributeError:
-            self._toggle = {}
-        except KeyError:
-            return None
+    def _get_toggle(self):
+        return self._toggle
 
-    def set_toggle(self, value):
+    def _set_toggle(self, value):
         if value == self.toggle:
             pass
         else:
-            self.iterator = None
             self.plots[self.current].toggle = value
-            self._toggle[self.current] = value
-            self._redrawflag = True
-
-    toggle = property(get_toggle, set_toggle, None, None)
+            self._toggle = value
+            self.update()
 
     def guess_p(self, start=None):
-        self.P = True
         if start is None:
             start = len(self.model.waveforms)
         for i in reversed(range(start)):
@@ -199,7 +202,7 @@ class WaveformPresenter(object):
                 prev = self.model.waveforms[i+1]
                 i_peaks = self.getindices(prev, WaveformPoint.PEAK)
                 a_peaks = prev.y[i_peaks]
-                seeds = zip(i_peaks, a_peaks)
+                seeds = list(zip(i_peaks, a_peaks))
                 guess_algorithm_kw = {'seeds': seeds}
                 p_indices = find_np(cur.fs, cur.y, guess_algorithm='seed',
                                     nzc_algorithm='noise',
@@ -212,6 +215,10 @@ class WaveformPresenter(object):
                                     nzc_algorithm_kw=nzc_algorithm_kw)
             for i, v in enumerate(p_indices):
                 self.setpoint(cur, (WaveformPoint.PEAK, i+1), v)
+        self.P = True
+        self.current = len(self.model.waveforms)-1
+        self.toggle = 'PEAK', 1
+        self.update()
 
     def update_point(self):
         for i in reversed(range(self.current)):
@@ -228,21 +235,20 @@ class WaveformPresenter(object):
                                  guess_algorithm_kw={'seeds': seeds},
                                  nzc_algorithm='noise')
             self.setpoint(cur, self.toggle, index)
-        self._plotupdate = True
+        self.update()
 
     def guess_n(self, start=None):
-        self.N = True
         if start is None:
             start = len(self.model.waveforms)
         for i in reversed(range(start)):
             cur = self.model.waveforms[i]
             p_indices = self.getindices(cur, WaveformPoint.PEAK)
-            bounds = concatenate((p_indices, array([len(cur.y)-1])))
+            bounds = np.concatenate((p_indices, np.array([len(cur.y)-1])))
             try:
                 prev = self.model.waveforms[i+1]
                 i_valleys = self.getindices(prev, WaveformPoint.VALLEY)
                 a_valleys = prev.y[i_valleys]
-                seeds = zip(i_valleys, a_valleys)
+                seeds = list(zip(i_valleys, a_valleys))
                 n_indices = find_np(cur.fs, -cur.y, guess_algorithm='seed',
                                     guess_algorithm_kw={'seeds': seeds},
                                     bounds=bounds, nzc_algorithm='noise',
@@ -256,18 +262,17 @@ class WaveformPresenter(object):
                                     n=self.options.n_waves)
             for i, v in enumerate(n_indices):
                 self.setpoint(cur, (WaveformPoint.VALLEY, i+1), v)
-        self._plotupdate = True
-
-    def close(self):
-        if self.app is not None:
-            self.app.ExitMainLoop()
+        self.N = True
+        self.current = len(self.model.waveforms)-1
+        self.toggle = 'VALLEY', 1
+        self.update()
 
     def setpoint(self, waveform, point, index):
         try:
             waveform.points[point].index = index
         except KeyError:
             waveform.points[point] = WaveformPoint(waveform, index, point)
-        self._redrawflag = True
+        self.update()
 
     def getindices(self, waveform, point):
         points = [v for v in waveform.points.values() if v.point_type == point]
@@ -275,38 +280,64 @@ class WaveformPresenter(object):
         return [p.index for p in points]
 
     def get_iterator(self):
-        iterator = self._iterator.get(self.current, None)
-        if iterator is not None:
-            return iterator
-
-        if self.toggle is not None:
-            waveform = self.model.waveforms[self.current]
-            start_index = waveform.points[self.toggle].index
-            if self.toggle[0] == WaveformPoint.PEAK:
-                iterator = iterator_np(waveform.fs, waveform.y, start_index)
-            else:
-                iterator = iterator_np(waveform.fs, -waveform.y, start_index)
-            iterator.next()
-            self._iterator[self.current] = iterator
-            return self._iterator[self.current]
+        if self.toggle is None:
+            return
+        waveform = self.model.waveforms[self.current]
+        start_index = waveform.points[self.toggle].index
+        if self.toggle[0] == WaveformPoint.PEAK:
+            iterator = iterator_np(waveform.fs, waveform.y, start_index)
         else:
-            return None
-
-    def set_iterator(self, value):
-        try:
-            self._iterator[self.current] = value
-        except AttributeError:
-            self._iterator = {}
-            self._iterator[self.current] = value
-
-    iterator = property(get_iterator, set_iterator)
+            iterator = iterator_np(waveform.fs, -waveform.y, start_index)
+        next(iterator)
+        return iterator
 
     def move_selected_point(self, step):
+        # No point is currently selected.  Ignore the request
         if self.toggle is None:
-            # No point is currently selected.  Ignore the request
             return
 
         waveform = self.model.waveforms[self.current]
         waveform.points[self.toggle].index = self.iterator.send(step)
         self.plots[self.current].points[self.toggle].update()
-        self._redrawflag = True
+        self.update()
+
+
+class SerialWaveformPresenter(WaveformPresenter):
+
+    unprocessed = List()
+    current_model = Int()
+
+    def __init__(self, unprocessed, options):
+        self.unprocessed = unprocessed
+        self.options = options
+        self.load_next()
+        self.current_model = -1
+
+    def onpress(self, event):
+        if event.key == 'pagedown':
+            self.load_next()
+        elif event.key == 'pageup':
+            self.load_prior()
+        else:
+            super().onpress(event)
+
+    def load_prior(self):
+        if self.current_model < 0:
+            return
+        self.current_model -= 1
+        filename, frequency = self.unprocessed[self.current_model]
+        model = registry.load(filename, self.options,
+                              frequencies=[frequency])[0]
+        self.load(model)
+
+    def load_next(self):
+        if self.current_model > len(self.unprocessed):
+            return
+        self.current_model += 1
+        filename, frequency = self.unprocessed[self.current_model]
+        model = registry.load(filename, self.options,
+                              frequencies=[frequency])[0]
+        self.load(model)
+
+    def close(self):
+        self.load_next()

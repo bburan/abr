@@ -111,15 +111,19 @@ class ABRWaveform(Waveform):
         self.min_latency = min_latency
 
     def is_subthreshold(self):
+        if self.series.threshold is None:
+            return False
         return self.level < self.series.threshold
 
     def is_suprathreshold(self):
+        if self.series.threshold is None:
+            return True
         return self.level >= self.series.threshold
 
 
 class ABRSeries(object):
 
-    def __init__(self, waveforms, freq=None, threshold=None):
+    def __init__(self, waveforms, freq=None, threshold=np.nan):
         waveforms.sort(key=operator.attrgetter('level'))
         self.waveforms = waveforms
         self.freq = freq

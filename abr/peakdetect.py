@@ -288,6 +288,6 @@ def seed_rank(s, indices, amplitudes, weighting=3, lb=25, ub=50):
     di[neg_mask] = di[neg_mask] * 1.5
 
     # Convert to a ranking
-    rankings = zip(indices, abs(di)*1.5 + abs(da))
+    rankings = list(zip(indices, abs(di)*1.5 + abs(da)))
     rankings.sort(key=op.itemgetter(1))
     return rankings

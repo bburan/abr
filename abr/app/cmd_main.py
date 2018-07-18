@@ -1,10 +1,15 @@
-#!python
 import argparse
-import wx
+
+import enaml
+from enaml.qt.qt_application import QtApplication
+
 import pkg_resources
 
-from abr.frame import PhysiologyFrame
+#from abr.frame import PhysiologyFrame
 from . import add_default_arguments
+
+with enaml.imports():
+    from abr.main_window import MPLWindow
 
 
 def main():
@@ -16,14 +21,16 @@ def main():
 
     options = parser.parse_args()
 
-    app = wx.App(False)
-    frame = PhysiologyFrame(options)
-    if options.demo:
-        files = [
-            pkg_resources.resource_filename('abr', 'data/ABR-52-3'),
-            pkg_resources.resource_filename('abr', 'data/CAP-139-5'),
-        ]
-        frame._nb.load(files)
-    else:
-        frame._nb.load(options.filenames)
+    app = QtApplication()
+    view = Main()
+
+    #frame = PhysiologyFrame(options)
+    #if options.demo:
+    #    files = [
+    #        pkg_resources.resource_filename('abr', 'data/ABR-52-3'),
+    #        pkg_resources.resource_filename('abr', 'data/CAP-139-5'),
+    #    ]
+    #    frame._nb.load(files)
+    #else:
+    #    frame._nb.load(options.filenames)
     app.MainLoop()

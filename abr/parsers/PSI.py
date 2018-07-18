@@ -38,11 +38,11 @@ def load(base_directory, filter_settings=None, frequencies=None):
         level = float(level)
         stack = waveforms.setdefault(frequency, [])
         waveform = ABRWaveform(fs, w.values[np.newaxis], level, filter=None,
-                               t0=w.index.min()*1e3)
+                               min_latency=1.5, t0=w.index.min()*1e3)
         stack.append(waveform)
 
     series = []
-    for frequency, stack in waveforms.iteritems():
+    for frequency, stack in waveforms.items():
         s = ABRSeries(stack, frequency)
         s.filename = filename[:-4]
         series.append(s)
