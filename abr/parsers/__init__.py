@@ -94,7 +94,9 @@ class ParserRegistry(object):
         return parser.load(filename, filter_settings, frequencies=frequencies)
 
     def get_save_filename(self, filename, frequency, options):
+        # Round frequency to nearest 8 places to minimize floating-point errors.
         user_name = options.user + '-' if options.user else ''
+        frequency = round(frequency, 8)
         return self.filename_template.format(filename=filename,
                                              frequency=frequency,
                                              user=user_name)

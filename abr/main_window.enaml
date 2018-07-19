@@ -1,7 +1,9 @@
 from enaml.application import deferred_call
 from enaml.layout.api import InsertItem, InsertTab
 from enaml.stdlib.message_box import critical
-from enaml.widgets.api import MainWindow, DockArea, DockItem, PushButton, Container, MPLCanvas, Feature
+from enaml.widgets.api import (MainWindow, DockArea, DockItem, PushButton,
+                               Container, MPLCanvas, Feature, ProgressBar,
+                               Label, HGroup)
 
 from abr.parsers import registry
 
@@ -19,51 +21,52 @@ def onclick(presenter, event):
 
 def onpress(presenter, event):
     try:
-        _onpress(presenter, event)
+        if event.key == 'down':
+            presenter.current -= 1
+        elif event.key == 'up':
+            presenter.current += 1
+        elif event.key == 't':
+            presenter.set_threshold()
+        elif event.key == 'alt+up':
+            presenter.set_subthreshold()
+        elif event.key == 'alt+down':
+            presenter.set_suprathreshold()
+        elif event.key in ('-', '_'):
+            presenter.scale *= 1.1
+        elif event.key in ('=', '+'):
+            presenter.scale *= 0.9
+        elif event.key == 'd':
+            presenter.delete()
+        elif event.key == 'i':
+            if not presenter.P:
+                presenter.guess_p()
+            elif not presenter.N:
+                presenter.guess_n()
+        elif event.key == 'u':
+            presenter.update_point()
+        elif event.key == 's':
+            presenter.save()
+        elif event.key == 'right':
+            presenter.move_selected_point(('zc', 1))
+        elif event.key == 'left':
+            presenter.move_selected_point(('zc', -1))
+        elif event.key == 'alt+right':
+            presenter.move_selected_point(('index', 1))
+        elif event.key == 'alt+left':
+            presenter.move_selected_point(('index', -1))
+        elif event.key == 'n':
+            presenter.normalized = not presenter.normalized
+        elif event.key in ('1', '2', '3', '4', '5'):
+            presenter.toggle = 'PEAK', int(event.key)
+        elif event.key in ('alt+1', 'alt+2', 'alt+3', 'alt+4', 'alt+5'):
+            presenter.toggle = 'VALLEY', int(event.key[-1])
+        elif event.key == 'pagedown':
+            presenter.load_next()
+        elif event.key == 'pageup':
+            presenter.load_prior()
+
     except Exception as e:
         critical(None, 'Error', str(e))
-
-
-def _onpress(presenter, event):
-    if event.key == 'down':
-        presenter.current -= 1
-    elif event.key == 'up':
-        presenter.current += 1
-    elif event.key == 't':
-        presenter.set_threshold()
-    elif event.key == 'alt+up':
-        presenter.set_subthreshold()
-    elif event.key == 'alt+down':
-        presenter.set_suprathreshold()
-    elif event.key in ('-', '_'):
-        presenter.scale *= 1.1
-    elif event.key in ('=', '+'):
-        presenter.scale *= 0.9
-    elif event.key == 'd':
-        presenter.delete()
-    elif event.key == 'i':
-        if not presenter.P:
-            presenter.guess_p()
-        elif not presenter.N:
-            presenter.guess_n()
-    elif event.key == 'u':
-        presenter.update_point()
-    elif event.key == 's':
-        presenter.save()
-    elif event.key == 'right':
-        presenter.move_selected_point(('zc', 1))
-    elif event.key == 'left':
-        presenter.move_selected_point(('zc', -1))
-    elif event.key == 'alt+right':
-        presenter.move_selected_point(('index', 1))
-    elif event.key == 'alt+left':
-        presenter.move_selected_point(('index', -1))
-    elif event.key == 'n':
-        presenter.normalized = not presenter.normalized
-    elif event.key in ('1', '2', '3', '4', '5'):
-        presenter.toggle = 'PEAK', int(event.key)
-    elif event.key in ('alt+1', 'alt+2', 'alt+3', 'alt+4', 'alt+5'):
-        presenter.toggle = 'VALLEY', int(event.key[-1])
 
 
 enamldef SerialWindow(MainWindow):
@@ -72,6 +75,17 @@ enamldef SerialWindow(MainWindow):
     initial_size = (600, 900)
 
     Container:
+
+        HGroup:
+
+            Label:
+                text = 'Progress'
+
+            ProgressBar:
+                value << presenter.current_model
+                maximum << len(presenter.unprocessed)
+                text_visible = True
+
         MPLCanvas: canvas:
             figure << presenter.figure
             toolbar_visible = False

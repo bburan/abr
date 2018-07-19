@@ -1,3 +1,4 @@
+from collections import Counter
 import enaml
 from enaml.qt.qt_application import QtApplication
 
@@ -26,10 +27,17 @@ def main():
     for dirname in options.dirnames:
         unprocessed.extend(registry.find_unprocessed(dirname, options))
 
-    app = QtApplication()
-    presenter = SerialWaveformPresenter(unprocessed=unprocessed,
-                                        options=options)
-    view = SerialWindow(presenter=presenter)
-    view.show()
-    app.start()
-    app.stop()
+    if options.list:
+        counts = Counter(f for f, _ in unprocessed)
+        for filename, n in counts.items():
+            filename = os.path.basename(filename)
+            print(f'{filename} ({n})')
+
+    else:
+        app = QtApplication()
+        presenter = SerialWaveformPresenter(unprocessed=unprocessed,
+                                            options=options)
+        view = SerialWindow(presenter=presenter)
+        view.show()
+        app.start()
+        app.stop()

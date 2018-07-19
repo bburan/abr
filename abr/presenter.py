@@ -115,7 +115,6 @@ class WaveformPresenter(Atom):
         except:
             pass
 
-
     def _get_current(self):
         return self._current
 
@@ -312,14 +311,6 @@ class SerialWaveformPresenter(WaveformPresenter):
         self.options = options
         self.load_next()
         self.current_model = -1
-
-    def onpress(self, event):
-        if event.key == 'pagedown':
-            self.load_next()
-        elif event.key == 'pageup':
-            self.load_prior()
-        else:
-            super().onpress(event)
 
     def load_prior(self):
         if self.current_model < 0:
