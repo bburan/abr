@@ -1,3 +1,6 @@
+import os.path
+import urllib
+
 from enaml.application import deferred_call
 from enaml.layout.api import InsertItem, InsertTab
 from enaml.stdlib.message_box import critical
@@ -93,46 +96,60 @@ enamldef SerialWindow(MainWindow):
                 deferred_call(bind, figure, presenter)
 
 
-#enamldef MPLDockItem(DockItem):
-#
-#    alias figure: canvas.figure
-#
-#    Container:
-#        MPLCanvas: canvas:
-#            toolbar_visible = False
-#            figure << model.figure
-#            figure ::
-#                print('figure changed')
-#
+enamldef MPLDockItem(DockItem):
 
-#enamldef Main(MainWindow):
-#
-#    Container:
-#
-#        PushButton:
-#            clicked::
-#                items = dock_area.dock_items()
-#                n_items = len(items)
-#
-#                target = items[-1].name if n_items else ''
-#                item = MPLDockItem(dock_area, name='foo{}'.format(n_items), title='Bar{}'.format(n_items))
-#
-#                item.figure = figure()
-#                ax = item.figure.add_subplot(111)
-#                ax.plot([0, 1], [0, 1], 'k-')
-#
-#                op = InsertTab(item=item.name, target=target)
-#                dock_area.update_layout(op)
-#
-#        DockArea: dock_area:
-#            features = Feature.DropEnabled
-#
-#            drag_enter => (event):
-#                if event.mime_data().has_format('text/uri-list'):
-#                    event.accept_proposed_action()
-#
-#            drop => (event):
-#                text = event.mime_data().data('text/uri-list').strip()
-#                filenames = [t.strip() for t in text.split('\n')]
-#                models = registry.load(filenames[0])
-#                print(models)
+    attr presenter
+
+    Container:
+        MPLCanvas: canvas:
+            figure << presenter.figure
+            toolbar_visible = False
+            initialized ::
+                deferred_call(bind, figure, presenter)
+
+
+def add_dock_item(dock_area, model, path, options):
+    from abr.presenter import WaveformPresenter
+    presenter = WaveformPresenter(options)
+    items = dock_area.dock_items()
+    n_items = len(items)
+
+    target = items[-1].name if n_items else ''
+    title = '{:.2f} kHz - {}'.format(model.freq, os.path.basename(path))
+    item = MPLDockItem(dock_area,
+                       name='foo{}'.format(n_items),
+                       title=title,
+                       presenter=presenter)
+
+    op = InsertTab(item=item.name, target=target)
+    dock_area.update_layout(op)
+    presenter.load(model)
+
+
+enamldef DNDWindow(MainWindow):
+
+    attr options
+    initial_size = (600, 900)
+
+    Container:
+
+        DockArea: dock_area:
+            features = Feature.DropEnabled
+
+            drag_enter => (event):
+                if event.mime_data().has_format('text/uri-list'):
+                    event.accept_proposed_action()
+
+            drop => (event):
+                text = event.mime_data().data('text/uri-list').decode('utf-8')
+                for t in text.strip().split('\n'):
+                    try:
+                        t = urllib.parse.unquote(t).strip()
+                        fragments = urllib.parse.urlsplit(t)
+                        path = fragments.path
+                        for model in registry.load(path, options):
+                            add_dock_item(dock_area, model, path, options)
+
+                    except FileNotFoundError:
+                        mesg = 'Could not load ABR data from {}'.format(path)
+                        critical(None, 'Could not load file', mesg)

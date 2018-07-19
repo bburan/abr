@@ -2,11 +2,11 @@ def add_default_arguments(parser):
     parser.add_argument('--nofilter', action='store_false', dest='filter',
                         default=True, help='Do not filter waveform')
     parser.add_argument('--lowpass',
-                        help='Lowpass cutoff (Hz), default 10,000 Hz',
-                        default=10e3, type=float)
+                        help='Lowpass cutoff (Hz), default 3000 Hz',
+                        default=3000, type=float)
     parser.add_argument('--highpass',
-                        help='Highpass cutoff (Hz), default 200 Hz',
-                        default=200, type=float)
+                        help='Highpass cutoff (Hz), default 300 Hz',
+                        default=300, type=float)
     parser.add_argument('--order',
                         help='Filter order, default 1st order', default=1,
                         type=int)
