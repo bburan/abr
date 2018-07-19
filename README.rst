@@ -6,46 +6,8 @@ in the waveform.
 
 The default input/output format used by the program are designed to work with
 the in-house file format used by Eaton Peabody Laboratory.  Refer to the
-peakdetect.py file for documentation on how to adapt this program to your data
+parsers directory for documentation on how to adapt this program to your data
 format.
-
-Loading Data
-------------
-Data can be loaded by opening a file directly via the command line ("python
-analyze.py CAP-139-5"), dragging and dropping the file from the operating system
-desktop, or selecting it via the file menu.  Note that you may specify multiple
-files via any of these methods.  When using the command line, wildcards should
-work (e.g. python analyze.py c:\\data\\AEH\\AEH350\\ABR-\*)
-
-Program Options
----------------
-Options are specified via the command line
-
-Usage: analyze.py [options] [filenames]
-
-Options:
-  -h, --help            show this help message and exit
-  --nofilter            Do not filter waveform
-  --lowpass=LOWPASS     Lowpass cutoff (Hz), default 10,000 Hz
-  --highpass=HIGHPASS   Highpass cutoff (Hz), default 200 Hz
-  --order=ORDER         Filter order, default 1st order
-  -d DIRECTORY, --directory=DIRECTORY
-                        Default directory for files
-  -i, --invert          Invert waveform polarity when waveforms are loaded
-  --demo                Load demo data
-
-If you regularly use the program with a different set of default values, I
-recommend you create a shortcut or alias that contains these defaults.  Under
-Windows, you can create a shortcut by right-clicking on the desktop (or an
-explorer window), selecting "New -> Shortcut" from the pop-up menu.  You will
-get a dialog box asking to type the location of the item.  Enter the following
-string:
-
-python C:\\programs\\ABR\\analyze.py --invert --directory c:\\data
-
-Where C:\\programs\\ABR\\analyze.py and c:\\data would be replaced with the
-appropriate path to the program and your data directory and the options list
-would be replaced with your preferred options.
 
 Analysis
 --------
@@ -90,13 +52,13 @@ The following keybindings are used when analyzing a waveform series:
     Right/Left arrows
         Move a toggled peak left or right along the waveform.  Movement of the
         peak will "snap" to estimated peaks in the waveform.  To adjust the peak
-        in fine increments, hold down the shift key simultaneously.
+        in fine increments, hold down the alt key simultaneously.
     Number keys 1-5
         Select the corresponding peak on the current waveform.  To select N1-5,
-        hold down shift while pressing the corresponding number.
+        hold down alt while pressing the corresponding number.
     I
-        Estimates N1-5 for all waveforms.  If N1-5 is already estimated,
-        recomputes the estimate.
+        Estimates P1-5 for all waveforms on the first press. N1-5 for all
+        waveforms on the second press. After that, nothing happens.
     U
         Updates guess for corresponding P or N of successive waveforms based on
         position of currently toggled P or N.
@@ -108,25 +70,13 @@ The following keybindings are used when analyzing a waveform series:
         Saves amplitude and latency of peaks.
     T
         Set threshold to current waveform.
+    Alt+Up
+        Indicate that all waveforms are below threshold.
+    Alt+Down
+        Indicate that all waveforms are above threshold.
 
 Some keys will repeat if you hold down the key, which may be useful when
 navigating through the waveforms or adjusting the location of a peak.
-
-Code Dependencies
------------------
-
-    wxPython_, numpy_, scipy_, matplotlib_
-    
-.. _wxPython: http://www.wxpython.org/
-.. _numpy: http://numpy.scipy.org/
-.. _scipy: http://www.scipy.org/
-.. _matplotlib: http://matplotlib.sourceforge.net/
-
-The simplest way to satisfy these dependencies is to install `Python(x,y)`_ or the
-`Enthought Python Distribution`_.
-
-.. _`Python(x,y)`: http://www.pythonxy.com
-.. _`Enthought Python Distribution`: http://www.enthought.com/products/epd.php
 
 The Algorithm
 -------------
