@@ -2,43 +2,18 @@
 # vim: set fileencoding=utf-8
 
 from matplotlib import transforms
+from matplotlib.pylab import setp
 
 
-class StylePlot(object):
+class StylePlot:
 
     HIDDEN = {'alpha': 0}
 
     def update(self):
         self.update_plot()
-        self.update_style()
+        setp(self.plot, **self.get_style())
 
-    def update_style(self):
-        self._setstyle(self.plot, self._getstyle())
-
-    def _setstyle(self, plot, style):
-        if isinstance(plot, list):
-            for p in plot:
-                for k, v in style.items():
-                    getattr(p, 'set_' + k)(v)
-        else:
-            for k, v in style.items():
-                getattr(plot, 'set_' + k)(v)
-
-    def _get_current(self):
-        try:
-            return self._current
-        except AttributeError:
-            return False
-
-    def _set_current(self, flag):
-        if self.current is not flag:
-            self._current = flag
-            self.update()
-
-    current = property(_get_current, _set_current)
-
-    # Method stubs
-    def _getstyle(self):
+    def get_style(self):
         raise NotImplementedError
 
     def update_plot(self):
@@ -96,25 +71,24 @@ class PointPlot(StylePlot):
         self.parent = parent
         self.point = point
         self.plot, = self.figure.plot(0, 0)
+        self.current = False
         self.update()
 
-    def remove(self):
-        self.figure.lines.remove(self.plot)
-
-    def _getstyle(self):
+    def get_style(self):
         # Hide subthreshold points
         if self.parent.waveform.is_subthreshold():
             return self.HIDDEN
+
+        # Return toggled value
         if self.current and self.parent.current:
             return self.TOGGLE
 
-        if self.point.is_peak():
-            style = self.PEAK
-        else:
-            style = self.VALLEY
+        # Fallback to this
+        style = self.PEAK if self.point.is_peak() else self.VALLEY
         index = self.point.wave_number-1
-        style['c'] = self.COLORS[index]
-        style['markerfacecolor'] = self.COLORS[index]
+        c = self.COLORS[self.point.wave_number-1]
+        style['c'] = c
+        style['markerfacecolor'] = c
         return style
 
     def update_plot(self):
@@ -173,14 +147,6 @@ class WaveformPlot(StylePlot):
         self.plot, = self.axis.plot(self.waveform.x, self.waveform.y, 'k-')
         self.update()
 
-    def __del__(self):
-        self.axis.lines.remove(self.plot)
-
-    def remove(self):
-        self.axis.lines.remove(self.plot)
-        for v in self.points.values():
-            v.remove()
-
     STYLE = {
         (True,  True):  CUR_PLOT,
         (True,  False): CUR_SUBTH_PLOT,
@@ -188,40 +154,22 @@ class WaveformPlot(StylePlot):
         (False, False): SUBTH_PLOT,
     }
 
-    def _getstyle(self):
+    def get_style(self):
         style = self.current, self.waveform.is_suprathreshold()
         return self.STYLE[style]
-
-    def set_toggle(self, point):
-        if point is not None:
-            if self.toggle is not None:
-                self.points[self._toggle].current = False
-            self.points[point].current = True
-            self._toggle = point
-
-    def get_toggle(self):
-        try:
-            return self._toggle
-        except AttributeError:
-            return None
-
-    toggle = property(get_toggle, set_toggle)
 
     def update_data(self):
         self.plot.set_data(self.waveform.x, self.waveform.y)
 
     def update_plot(self):
-        if self.normalized:
-            self.plot.set_transform(self.t_norm)
-        else:
-            self.plot.set_transform(self.t_reg)
+        transform = self.t_norm if self.normalized else self.t_reg
+        self.plot.set_transform(transform)
 
     def update(self):
-        self.update_plot()
-        self.update_style()
         # Check to see if new points were added (e.g. valleys)
         for point, data in self.waveform.points.items():
             if point not in self.points:
                 self.points[point] = PointPlot(self, self.axis, data)
         for p in self.points.values():
             p.update()
+        super().update()

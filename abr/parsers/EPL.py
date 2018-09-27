@@ -30,8 +30,8 @@ def load(fname, filter=None, frequencies=None):
             fs = 1e6/sampling_period
             cutoff = int(abr_window / sampling_period)
             data = np.array(data.split()).astype(np.float32)
-            data = data.reshape(len(data)/len(levels), len(levels)).T
-            data = data[:, :cutoff]
+            data.shape = -1, len(levels)
+            data = data.T[:, :cutoff]
 
             waveforms = []
             for signal, level in zip(data, levels):

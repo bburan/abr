@@ -52,20 +52,26 @@ def load(base_directory, filter_settings=None, frequencies=None):
 
 def is_processed(base_directory, frequency, options):
     from abr.parsers import registry
-    filter_settings = {
-        'highpass': options.highpass,
-        'lowpass': options.lowpass,
-    }
+    if options.filter:
+        filter_settings = {
+            'highpass': options.highpass,
+            'lowpass': options.lowpass,
+        }
+    else:
+        filter_settings = None
     filename = get_filename(base_directory, filter_settings)[:-4]
     save_filename = registry.get_save_filename(filename, frequency, options)
     return os.path.exists(save_filename)
 
 
 def get_frequencies(base_directory, options):
-    filter_settings = {
-        'highpass': options.highpass,
-        'lowpass': options.lowpass,
-    }
+    if options.filter:
+        filter_settings = {
+            'highpass': options.highpass,
+            'lowpass': options.lowpass,
+        }
+    else:
+        filter_settings = None
     filename = get_filename(base_directory, filter_settings)
     data = pd.io.parsers.read_csv(filename, header=[0, 1], index_col=0).T
     frequencies = np.unique(data.index.get_level_values('frequency'))
@@ -73,7 +79,7 @@ def get_frequencies(base_directory, options):
 
 
 def find_unprocessed(dirname, options):
-    wildcard = os.path.join(dirname, '*abr')
+    wildcard = os.path.join(dirname, '*abr*')
     unprocessed = []
     for base_directory in glob.glob(wildcard):
         for frequency in get_frequencies(base_directory, options):

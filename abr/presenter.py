@@ -52,6 +52,7 @@ class WaveformPresenter(Atom):
     model = Typed(ABRSeries)
 
     current = Property()
+
     toggle = Property()
     scale = Property()
     normalized = Property()
@@ -80,19 +81,22 @@ class WaveformPresenter(Atom):
         self.options = options
 
     def load(self, model):
+        self._current = 0
         self.axes.clear()
         self.model = model
         self.plots, bounds = plot_model(self.axes, self.model)
-        self.N = False
-        self.P = False
-        self.toggle = None
-        self.iterator = None
-        self.normalized = False
-        self.current = len(self.model.waveforms)-1
-        self.update_labels()
         self._reg_scale = sum(bounds)/2
         self._norm_scale = 1*len(self.plots)
         self.scale = self._reg_scale
+
+        self.N = False
+        self.P = False
+        # Set current before toggle. Ordering is important.
+        self.current = len(self.model.waveforms)-1
+        self.toggle = None
+        self.iterator = None
+        self.normalized = False
+        self.update_labels()
         try:
             self.figure.canvas.draw()
         except:
@@ -107,7 +111,6 @@ class WaveformPresenter(Atom):
         self.close()
 
     def update(self):
-        self.iterator = self.get_iterator()
         for p in self.plots:
             p.update()
         try:
@@ -119,18 +122,12 @@ class WaveformPresenter(Atom):
         return self._current
 
     def _set_current(self, value):
-        if value < 0 or value > len(self.model.waveforms)-1:
+        if not (0 <= value < len(self.model.waveforms)):
             return
         if value == self.current:
             return
-
-        try:
-            self.plots[self.current].current = False
-            self.plots[self.current].toggled = None
-        except IndexError:
-            pass
+        self.plots[self.current].current = False
         self.plots[value].current = True
-        self.plots[value].toggle = self.toggle
         self._current = value
         self.update()
 
@@ -174,6 +171,11 @@ class WaveformPresenter(Atom):
 
     def set_subthreshold(self):
         self.model.threshold = np.inf
+        if not self.P:
+            self.guess_p()
+        if not self.N:
+            self.guess_n()
+        self.save()
         self.update()
 
     def set_threshold(self):
@@ -185,11 +187,18 @@ class WaveformPresenter(Atom):
 
     def _set_toggle(self, value):
         if value == self.toggle:
-            pass
-        else:
-            self.plots[self.current].toggle = value
-            self._toggle = value
-            self.update()
+            return
+
+        for plot in self.plots:
+            point = plot.points.get(self.toggle)
+            if point is not None:
+                point.current = False
+
+        self._toggle = value
+        for plot in self.plots:
+            point = plot.points.get(value)
+            if point is not None:
+                point.current = True
 
     def guess_p(self, start=None):
         if start is None:
@@ -217,6 +226,7 @@ class WaveformPresenter(Atom):
         self.P = True
         self.current = len(self.model.waveforms)-1
         self.toggle = 'PEAK', 1
+        self.iterator = self.get_iterator()
         self.update()
 
     def update_point(self):
@@ -264,6 +274,7 @@ class WaveformPresenter(Atom):
         self.N = True
         self.current = len(self.model.waveforms)-1
         self.toggle = 'VALLEY', 1
+        self.iterator = self.get_iterator()
         self.update()
 
     def setpoint(self, waveform, point, index):

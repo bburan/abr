@@ -6,7 +6,7 @@ from enaml.layout.api import InsertItem, InsertTab
 from enaml.stdlib.message_box import critical
 from enaml.widgets.api import (MainWindow, DockArea, DockItem, PushButton,
                                Container, MPLCanvas, Feature, ProgressBar,
-                               Label, HGroup)
+                               Label, HGroup, VGroup)
 
 from abr.parsers import registry
 
@@ -38,8 +38,6 @@ def onpress(presenter, event):
             presenter.scale *= 1.1
         elif event.key in ('=', '+'):
             presenter.scale *= 0.9
-        elif event.key == 'd':
-            presenter.delete()
         elif event.key == 'i':
             if not presenter.P:
                 presenter.guess_p()
@@ -67,9 +65,9 @@ def onpress(presenter, event):
             presenter.load_next()
         elif event.key == 'pageup':
             presenter.load_prior()
-
     except Exception as e:
-        critical(None, 'Error', str(e))
+        raise
+        #critical(None, 'Error', str(e))
 
 
 enamldef SerialWindow(MainWindow):
@@ -80,14 +78,25 @@ enamldef SerialWindow(MainWindow):
     Container:
 
         HGroup:
+            VGroup:
+                Label:
+                    text = 'Progress (n={})'.format(len(presenter.unprocessed))
+                ProgressBar:
+                    value << presenter.current_model
+                    maximum << len(presenter.unprocessed)
+                    text_visible = True
+            VGroup:
+                PushButton:
+                    text = 'All above threshold'
+                    clicked ::
+                        presenter.set_suprathreshold()
+                PushButton:
+                    text = 'All below threshold'
+                    clicked ::
+                        presenter.set_subthreshold()
 
-            Label:
-                text = 'Progress'
-
-            ProgressBar:
-                value << presenter.current_model
-                maximum << len(presenter.unprocessed)
-                text_visible = True
+        Label:
+            text << '{} kHz'.format(presenter.model.freq)
 
         MPLCanvas: canvas:
             figure << presenter.figure

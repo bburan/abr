@@ -6,7 +6,6 @@ import argparse
 import os.path
 
 from abr.parsers import registry
-#from abr.frame import PersistentFrame, create_presenter
 
 from . import add_default_arguments
 
