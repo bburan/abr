@@ -70,7 +70,7 @@ class PointPlot(StylePlot):
         self.figure = figure
         self.parent = parent
         self.point = point
-        self.plot, = self.figure.plot(0, 0)
+        self.plot, = self.figure.plot(0, 0, transform=parent.transform, clip_on=False)
         self.current = False
         self.update()
 
@@ -93,7 +93,6 @@ class PointPlot(StylePlot):
 
     def update_plot(self):
         self.plot.set_data(self.point.x, self.point.y)
-        self.plot.set_transform(self.parent.plot.get_transform())
 
 
 class WaveformPlot(StylePlot):
@@ -123,28 +122,16 @@ class WaveformPlot(StylePlot):
         'zorder':       10,
     }
 
-    def __init__(self, waveform, axis, offset):
-        self.offset = offset
+    def __init__(self, waveform, axis, transform):
         self.axis = axis
         self.waveform = waveform
-        self.normalized = False
         self.current = False
         self.points = {}
-
-        # Compute offset transform
-        offset = transforms.Affine2D().translate(0, self.offset)
-        self.t_reg = self.axis.transLimits + offset + self.axis.transAxes
-
-        # Compute normalized transform.  Basically the min/max of the waveform
-        # are scaled to the range [0, 1] (i.e. normalized) before being passed
-        # to the t_reg transform.
-        boxin = transforms.Bbox([[0, self.waveform.y.min()],
-                                [1, self.waveform.y.max()]])
-        boxout = transforms.Bbox([[0, 0], [1, 1]])
-        self.t_norm = transforms.BboxTransform(boxin, boxout) + self.t_reg
+        self.transform = transform
 
         # Create the plot
-        self.plot, = self.axis.plot(self.waveform.x, self.waveform.y, 'k-')
+        self.plot, = self.axis.plot(self.waveform.x, self.waveform.y, 'k-',
+                                    transform=transform, clip_on=False)
         self.update()
 
     STYLE = {
@@ -158,12 +145,8 @@ class WaveformPlot(StylePlot):
         style = self.current, self.waveform.is_suprathreshold()
         return self.STYLE[style]
 
-    def update_data(self):
-        self.plot.set_data(self.waveform.x, self.waveform.y)
-
-    def update_plot(self):
-        transform = self.t_norm if self.normalized else self.t_reg
-        self.plot.set_transform(transform)
+    #def update_data(self):
+    #    self.plot.set_data(self.waveform.x, self.waveform.y)
 
     def update(self):
         # Check to see if new points were added (e.g. valleys)

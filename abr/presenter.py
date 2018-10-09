@@ -6,7 +6,7 @@ from atom.api import (Atom, Typed, Dict, List, Bool, Int, Float, Tuple,
 
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
-from matplotlib.transforms import blended_transform_factory
+from matplotlib import transforms as T
 
 from abr.abrpanel import WaveformPlot
 from abr.datatype import ABRSeries, WaveformPoint
@@ -16,32 +16,55 @@ from abr.parsers import registry
 
 def plot_model(axes, model):
     n = len(model.waveforms)
-    offset_delta = 0.8/n
-    offset = 0.05
+    offset_step = 1/(n+1)
     plots = []
 
-    bounds = []
-    text_trans = blended_transform_factory(axes.figure.transFigure,
-                                           axes.transAxes)
-    for waveform in model.waveforms:
-        plot = WaveformPlot(waveform, axes, offset)
-        bounds.append(abs(waveform.y.min()))
-        bounds.append(abs(waveform.y.max()))
+
+    text_trans = T.blended_transform_factory(axes.figure.transFigure,
+                                             axes.transAxes)
+
+    limits = [(w.y.min(), w.y.max()) for w in model.waveforms]
+    base_scale = np.mean(np.abs(np.array(limits)))
+
+    bscale_in_box = T.Bbox([[0, -base_scale], [1, base_scale]])
+    bscale_in = T.BboxTransformFrom(bscale_in_box)
+    bscale_out = T.BboxTransformTo(T.Bbox([[0, -1], [1, 1]]))
+
+    tscale_in_box = T.Bbox([[0, -1], [1, 1]])
+    tscale_in = T.BboxTransformFrom(tscale_in_box)
+    tscale_out = T.BboxTransformTo(T.Bbox([[0, 0], [1, offset_step]]))
+
+    boxes = {
+        'tscale': tscale_in_box,
+        'tnorm': [],
+        'norm_limits': limits/base_scale,
+    }
+
+    for i, waveform in enumerate(model.waveforms):
+        y_min, y_max = waveform.y.min(), waveform.y.max()
+        tnorm_in_box = T.Bbox([[0, -1], [1, 1]])
+        tnorm_in = T.BboxTransformFrom(tnorm_in_box)
+        tnorm_out_box = T.Bbox([[0, -1], [1, 1]])
+        tnorm_out = T.BboxTransformTo(tnorm_out_box)
+        boxes['tnorm'].append(tnorm_in_box)
+
+        offset = offset_step * i + offset_step * 0.5
+        translate = T.Affine2D().translate(0, offset)
+
+        y_trans = bscale_in + bscale_out + \
+            tnorm_in + tnorm_out + \
+            tscale_in + tscale_out + \
+            translate + axes.transAxes
+        trans = T.blended_transform_factory(axes.transData, y_trans)
+
+        plot = WaveformPlot(waveform, axes, trans)
         plots.append(plot)
-        text = axes.text(0.02, offset, str(waveform.level))
+        #text = axes.text(0.02, offset, str(waveform.level))
 
-        # For some reason if we try to set a transform in the call to
-        # figure.text, it does not get set, so we set it after the text
-        # object has been created.
-        text.set_transform(text_trans)
-        offset += offset_delta
-
-    axes.set_autoscale_on(False)
-
-    # Set the view limits (e.g. 0-8.5 msec)
-    #self.view.subplot.axis(xmin=0, xmax=8.5, ymin=0)
+    axes.axis(ymax=1e-3)
     axes.set_yticks([])
-    return plots, bounds
+
+    return plots, boxes
 
 
 class WaveformPresenter(Atom):
@@ -56,15 +79,12 @@ class WaveformPresenter(Atom):
     toggle = Property()
     scale = Property()
     normalized = Property()
+    boxes = Dict()
 
     iterator = Value()
 
-    _normalized = Bool()
     _current = Int()
     _toggle = Value()
-    _scale = Float()
-    _reg_scale = Float()
-    _norm_scale = Float()
     plots = List()
     N = Bool(False)
     P = Bool(False)
@@ -84,23 +104,17 @@ class WaveformPresenter(Atom):
         self._current = 0
         self.axes.clear()
         self.model = model
-        self.plots, bounds = plot_model(self.axes, self.model)
-        self._reg_scale = sum(bounds)/2
-        self._norm_scale = 1*len(self.plots)
-        self.scale = self._reg_scale
+        self.plots, self.boxes = plot_model(self.axes, self.model)
 
         self.N = False
         self.P = False
+
         # Set current before toggle. Ordering is important.
         self.current = len(self.model.waveforms)-1
         self.toggle = None
         self.iterator = None
-        self.normalized = False
-        self.update_labels()
-        try:
+        if self.figure.canvas is not None:
             self.figure.canvas.draw()
-        except:
-            pass
 
     def save(self):
         if  np.isnan(self.model.threshold):
@@ -132,38 +146,32 @@ class WaveformPresenter(Atom):
         self.update()
 
     def _get_scale(self):
-        return self._scale
+        return self.boxes['tscale'].ymax
 
     def _set_scale(self, value):
         if value < 0:
             return
-        self._scale = value
-        self.axes.axis(ymin=0, ymax=value)
-        self.update_labels()
-        self.update()
-
-    def update_labels(self):
-        label = 'normalized' if self.normalized else 'raw'
-        self.axes.set_title(label)
+        box = np.array([[0, -value], [1, value]])
+        self.boxes['tscale'].set_points(box)
+        self.figure.canvas.draw()
 
     def _get_normalized(self):
-        return self._normalized
+        box = self.boxes['tnorm'][0]
+        return not ((box.ymin == -1) and (box.ymax == 1))
 
     def _set_normalized(self, value):
-        if value == self.normalized:
-            return
-
-        self._normalized = value
-        if self._normalized:
-            self._reg_scale, self.scale = self.scale, self._norm_scale
+        if value:
+            zipped = zip(self.boxes['tnorm'], self.boxes['norm_limits'])
+            for box, (lb, ub) in zipped:
+                points = np.array([[0, lb], [1, ub]])
+                box.set_points(points)
         else:
-            self._norm_scale, self.scale = self.scale, self._reg_scale
-
-        for p in self.plots:
-            p.normalized = value
-            p.update()
-        self.update_labels()
-        self.update()
+            for box in self.boxes['tnorm']:
+                points = np.array([[0, -1], [1, 1]])
+                box.set_points(points)
+        label = 'normalized' if value else 'raw'
+        self.axes.set_title(label)
+        self.figure.canvas.draw()
 
     def set_suprathreshold(self):
         self.model.threshold = -np.inf
