@@ -126,7 +126,7 @@ def add_dock_item(dock_area, model, path, options):
     target = items[-1].name if n_items else ''
     title = '{:.2f} kHz - {}'.format(model.freq, os.path.basename(path))
     item = MPLDockItem(dock_area,
-                       name='foo{}'.format(n_items),
+                       name='dock_{}'.format(n_items),
                        title=title,
                        presenter=presenter)
 
@@ -143,6 +143,7 @@ enamldef DNDWindow(MainWindow):
     Container:
 
         DockArea: dock_area:
+            name = 'dock_area'
             features = Feature.DropEnabled
 
             drag_enter => (event):
