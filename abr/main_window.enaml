@@ -48,13 +48,13 @@ def onpress(presenter, event):
         elif event.key == 's':
             presenter.save()
         elif event.key == 'right':
-            presenter.move_selected_point(('zc', 1))
+            presenter.move_selected_point(('zero_crossing', 1))
         elif event.key == 'left':
-            presenter.move_selected_point(('zc', -1))
+            presenter.move_selected_point(('zero_crossing', -1))
         elif event.key == 'alt+right':
-            presenter.move_selected_point(('index', 1))
+            presenter.move_selected_point(('time', 1e-5))
         elif event.key == 'alt+left':
-            presenter.move_selected_point(('index', -1))
+            presenter.move_selected_point(('time', -1e-5))
         elif event.key == 'n':
             presenter.normalized = not presenter.normalized
         elif event.key in ('1', '2', '3', '4', '5'):

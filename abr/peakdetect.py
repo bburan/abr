@@ -132,8 +132,10 @@ def find_np(fs, waveform, nzc_algorithm='noise', guess_algorithm='basic', n=5,
         guess_algorithm_kw = {}
     if nzc_algorithm_kw is None:
         nzc_algorithm_kw = {}
-    nzc_func = globals()['nzc_%s_filtered' % nzc_algorithm]
-    guess_func = globals()['np_%s' % guess_algorithm]
+
+    namespace = globals()
+    nzc_func = namespace[f'nzc_{nzc_algorithm}_filtered']
+    guess_func = namespace[f'np_{guess_algorithm}']
 
     # Get the NZC indices (e.g. the putative guess for the peak indices)
     nzc_indices = nzc_func(fs, waveform, **nzc_algorithm_kw)
@@ -146,15 +148,15 @@ def find_np(fs, waveform, nzc_algorithm='noise', guess_algorithm='basic', n=5,
             # If only one NZC falls within the bound, use that as the guess
             if len(bounded_indices) == 1:
                 indices.append(bounded_indices[0])
-            # If no NZCs fall within the bound, use the lower end of the bounded
-            # range as the guess
+            # If no NZCs fall within the bound, use the lower end of the
+            # bounded range as the guess
             elif len(bounded_indices) == 0:
                 indices.append(bounds[p])
             else:
                 try:
-                    # If the algorithm cannot make a guess as to the best index,
-                    # it will raise an IndexError.  We capture that and place
-                    # the index on the very end of the waveform.
+                    # If the algorithm cannot make a guess as to the best
+                    # index, it will raise an IndexError.  We capture that and
+                    # place the index on the very end of the waveform.
                     guess = guess_func(fs, waveform, bounded_indices, p,
                                        **guess_algorithm_kw)
                     indices.append(guess)
@@ -186,10 +188,6 @@ def np_basic(fs, waveform, indices, n, min_latency=1.0):
     return indices[indices >= lb_index][n]
 
 
-def np_y_fun(fs, waveform, indices, n, fun=max):
-    return np.where(waveform == fun(waveform[indices]))[0][0]
-
-
 def np_seed(fs, waveform, indices, n, seeds, seed_lb=0.25, seed_ub=0.50):
     amplitudes = waveform[indices]
     lb = seed_lb*1e-3*fs
@@ -197,40 +195,35 @@ def np_seed(fs, waveform, indices, n, seeds, seed_lb=0.25, seed_ub=0.50):
     return seed_rank(seeds[n], indices, amplitudes, 3, lb, ub)[0][0]
 
 
-def iterator_np(fs, waveform, start, nzc_filter=None):
+def np_y_fun(fs, waveform, indices, n, fun=max):
+    return np.where(waveform == fun(waveform[indices]))[0][0]
+
+
+def iterator_np(fs, waveform, start):
     '''
     Coroutine that steps through the possible guesses for the peak
     '''
-    if nzc_filter is None:
-        nzc_indices = nzc(waveform)
-    else:
-        nzc_indices = globals()['nzc_'+nzc_filter](fs, waveform)
+    nzc_indices = nzc(waveform)
 
-    dp = abs(nzc_indices-start)
-    i = np.where(dp == dp.min())[0][0]
-    di = start-nzc_indices[i]  # Single index steps
+    # Find the zero crossing closest to the starting point of the peak. Then,
+    # set the t_index to cover the remaining distance.
+    zc_index = np.argmin(np.abs(nzc_indices-start))
+    t_index = start - nzc_indices[zc_index]
+    i = start
 
     while True:
-        step = (yield (nzc_indices[i] + di))
-        if step is not None:
-            if step[0] == 'zc':
-                prev = i
-                if di < 0 and step[1] > 0:
-                    i -= 1
-                elif di > 0 and step[1] < 0:
-                    i += 1
-                i += step[1]
-                di = 0
-                if i >= len(nzc_indices) or i < 0:
-                    i = prev
-            else:
-                prev = di
-                di += step[1]
-                if (nzc_indices[i] + di) in nzc_indices:
-                    i = np.where(nzc_indices == (nzc_indices[i] + di))[0][0]
-                    di = 0
-                if nzc_indices[i]+di >= len(waveform) or nzc_indices[i]+di < 0:
-                    di = prev
+        step_mode, step_size = yield i
+        if step_mode == 'zero_crossing':
+            # Snap to next zero crossing
+            zc_index = np.clip(zc_index + step_size, 0, len(nzc_indices)-1)
+            t_index = 0
+        elif step_mode == 'time':
+            # Ensure step size is at least one period in length.
+            step_size = max(abs(step_size), 1/fs) * np.sign(step_size)
+            t_index += round(step_size * fs)
+
+        i = nzc_indices[zc_index] + t_index
+        i = int(round(np.clip(i, 0, len(waveform)-1)))
 
 
 ################################################################################
@@ -265,7 +258,7 @@ def cluster(indices, y, distance, fun=max):
     clusters = cluster_indices(indices, distance)
     values = []
     for c in clusters:
-        index = np.where(y[c] == fun(y[c]))[0][0]
+        index = np.flatnonzero(y[c] == fun(y[c]))[0]
         values.append(c[index])
     return values
 

@@ -13,12 +13,14 @@ from abr.datatype import ABRSeries, WaveformPoint
 from abr.peakdetect import find_np, iterator_np
 from abr.parsers import registry
 
+# Maximum spacing, in seconds, between positive and negative points of wave.
+MAX_PN_DELTA = 0.25
+
 
 def plot_model(axes, model):
     n = len(model.waveforms)
     offset_step = 1/(n+1)
     plots = []
-
 
     text_trans = T.blended_transform_factory(axes.figure.transFigure,
                                              axes.transAxes)
@@ -59,10 +61,13 @@ def plot_model(axes, model):
 
         plot = WaveformPlot(waveform, axes, trans)
         plots.append(plot)
-        #text = axes.text(0.02, offset, str(waveform.level))
 
-    axes.axis(ymax=1e-3)
+        text_trans = T.blended_transform_factory(axes.transAxes, y_trans)
+        axes.text(-0.05, 0, f'{waveform.level}', transform=text_trans)
+
     axes.set_yticks([])
+    for spine in ('top', 'left', 'right'):
+        axes.spines[spine].set_visible(False)
 
     return plots, boxes
 
@@ -105,7 +110,7 @@ class WaveformPresenter(Atom):
         self.axes.clear()
         self.model = model
         self.plots, self.boxes = plot_model(self.axes, self.model)
-
+        self.normalized = False
         self.N = False
         self.P = False
 
@@ -171,7 +176,10 @@ class WaveformPresenter(Atom):
                 box.set_points(points)
         label = 'normalized' if value else 'raw'
         self.axes.set_title(label)
-        self.figure.canvas.draw()
+        try:
+            self.figure.canvas.draw()
+        except AttributeError:
+            pass
 
     def set_suprathreshold(self):
         self.model.threshold = -np.inf
@@ -313,7 +321,6 @@ class WaveformPresenter(Atom):
         # No point is currently selected.  Ignore the request
         if self.toggle is None:
             return
-
         waveform = self.model.waveforms[self.current]
         waveform.points[self.toggle].index = self.iterator.send(step)
         self.plots[self.current].points[self.toggle].update()

@@ -64,7 +64,6 @@ class PointPlot(StylePlot):
     }
 
     COLORS = [(1, 0, 0), (1, 1, 0), (0, 1, 0), (0, 1, 1), (0, 0, 1)]
-    DARK_COLORS = [(.3, 0, 0), (.3, .3, 0), (0, .3, 0), (0, .3, .3), (0, 0, .3)]
 
     def __init__(self, parent, figure, point):
         self.figure = figure
@@ -144,9 +143,6 @@ class WaveformPlot(StylePlot):
     def get_style(self):
         style = self.current, self.waveform.is_suprathreshold()
         return self.STYLE[style]
-
-    #def update_data(self):
-    #    self.plot.set_data(self.waveform.x, self.waveform.y)
 
     def update(self):
         # Check to see if new points were added (e.g. valleys)
