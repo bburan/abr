@@ -23,37 +23,30 @@ import re
 import os
 import time
 
-import pkgutil
 import importlib
-
 
 import pandas as pd
 import numpy as np
 
-from ..datatype import WaveformPoint
+from ..datatype import Point
 
 
-def waveform_string(waveform, n_waves):
-    data = ['%.2f' % waveform.level]
-    data.append('%f' % waveform.stat((0, 1), np.average))
-    data.append('%f' % waveform.stat((0, 1), np.std))
-    for i in range(1, n_waves+1):
-        data.append('%.8f' % waveform.points[(WaveformPoint.PEAK, i)].latency)
-        data.append('%.8f' % waveform.points[(WaveformPoint.PEAK, i)].amplitude)
-        data.append('%.8f' % waveform.points[(WaveformPoint.VALLEY, i)].latency)
-        data.append('%.8f' %
-                    waveform.points[(WaveformPoint.VALLEY, i)].amplitude)
+def waveform_string(waveform):
+    data = [f'{waveform.level:.2f}']
+    data.append(f'{waveform.mean(0, 1)}')
+    data.append(f'{waveform.std(0, 1)}')
+    for _, point in sorted(waveform.points.items()):
+        data.append(f'{point.latency:.8f}')
+        data.append(f'{point.amplitude:.8f}')
     return '\t'.join(data)
 
 
 def filter_string(waveform):
-    header = 'Filter history (zpk format):'
     if getattr(waveform, '_zpk', None) is None:
-        return header + ' No filtering'
-    else:
-        t = 'Pass %d -- z: %r, p: %r, k: %r'
-        filt = [t % (i, z, p, k) for i, (z, p, k) in enumerate(waveform._zpk)]
-        return header + '\n' + '\n'.join(filt)
+        return 'No filtering'
+    t = 'Pass %d -- z: %r, p: %r, k: %r'
+    filt = [t % (i, z, p, k) for i, (z, p, k) in enumerate(waveform._zpk)]
+    return '\n' + '\n'.join(filt)
 
 
 def load_analysis(fname):
@@ -69,72 +62,73 @@ def load_analysis(fname):
     return (freq, th, data)
 
 
-class ParserRegistry(object):
+class Parser(object):
 
     filename_template = '{filename}-{frequency}kHz-{user}analyzed.txt'
 
-    def __init__(self):
-        self.parsers = {}
+    def __init__(self, file_format, filter_settings, user=None):
+        '''
+        Parameters
+        ----------
+        file_format : string
+            File format that will be loaded.
+        filter_settings : {None, dict}
+            If None, no filtering is applied. If dict, must contain ftype,
+            lowpass, highpass and order as keys.
+        user : {None, string}
+            Person analyzing the data.
+        '''
+        self._file_format = file_format
+        self._filter_settings = filter_settings
+        self._user = user
+        self._module_name = f'abr.parsers.{file_format}'
+        self._module = importlib.import_module(self._module_name)
 
-    def register(self, parser):
-        self.parsers[parser.__name__] = parser
+    def load(self, filename, frequencies=None):
+        return self._module.load(filename, self._filter_settings, frequencies)
 
-    def load(self, filename, options, frequencies=None):
-        if options.filter:
-            filter_settings = {
-                'ftype': 'butter',
-                'lowpass': options.lowpass,
-                'highpass': options.highpass,
-                'order': options.order,
-            }
-        else:
-            filter_settings = None
-
-        parser = self.parsers[options.parser]
-        return parser.load(filename, filter_settings, frequencies=frequencies)
-
-    def get_save_filename(self, filename, frequency, options):
-        # Round frequency to nearest 8 places to minimize floating-point errors.
-        user_name = options.user + '-' if options.user else ''
+    def get_save_filename(self, filename, frequency):
+        # Round frequency to nearest 8 places to minimize floating-point
+        # errors.
+        user_name = self._user + '-' if self._user else ''
         frequency = round(frequency, 8)
         return self.filename_template.format(filename=filename,
                                              frequency=frequency,
                                              user=user_name)
 
-    def save(self, model, options):
-        n_waves = options.n_waves
-        header = 'Threshold (dB SPL): %r\nFrequency (kHz): %.2f\n%s\n%s\n%s\n%s'
-        mesg = 'NOTE: Negative latencies indicate no peak'
+    def save(self, model):
         # Assume that all waveforms were filtered identically
-        filters = filter_string(model.waveforms[-1])
+        filter_history = filter_string(model.waveforms[-1])
 
-        col_label_fmt = 'P%d Latency\tP%d Amplitude\tN%d Latency\tN%d Amplitude\t'
-        col_labels = ['Level\t1msec Avg\t1msec StDev\t']
-        col_labels.extend([col_label_fmt % (i, i, i, i) for i in range(1, n_waves+1)])
-        col_labels = ''.join(col_labels)
-        spreadsheet = '\n'.join([waveform_string(w, n_waves) for w in reversed(model.waveforms)])
-        content = header % (model.threshold, model.freq, filters, mesg,
-                            col_labels, spreadsheet)
+        # Generate list of columns
+        columns = ['Level', '1msec Avg', '1msec StDev']
+        point_keys = sorted(model.waveforms[0].points)
+        for point_number, point_type in point_keys:
+            point_type_code = 'P' if point_type == Point.PEAK else 'N'
+            for measure in ('Latency', 'Amplitude'):
+                columns.append(f'{point_type_code}{point_number} {measure}')
 
-        filename = self.get_save_filename(model.filename, model.freq, options)
+        columns = '\t'.join(columns)
+        spreadsheet = '\n'.join(waveform_string(w) for w in reversed(model.waveforms))
+        content = CONTENT.format(threshold=model.threshold,
+                                 frequency=model.freq,
+                                 filter_history=filter_history,
+                                 columns=columns,
+                                 spreadsheet=spreadsheet)
+
+        filename = self.get_save_filename(model.filename, model.freq)
         with open(filename, 'w') as fh:
             fh.writelines(content)
 
-        return 'Saved data to %s' % filename
-
     def find_unprocessed(self, dirname, options):
-        parser = self.parsers[options.parser]
-        return parser.find_unprocessed(dirname, options)
+        return self._module.find_unprocessed(dirname, options)
 
 
-registry = ParserRegistry()
-
-
-for loader, module_name, is_pkg in  pkgutil.walk_packages(__path__):
-    try:
-        module = loader.find_module(module_name).load_module(module_name)
-        if hasattr(module, 'load'):
-            registry.register(module)
-    except ImportError:
-        raise
-        pass
+CONTENT = '''
+Threshold (dB SPL): {threshold:.2f}
+Frequency (kHz): {frequency:.2f}
+Filter history (zpk format): {filter_history}
+NOTE: Negative latencies indicate no peak
+{columns}
+{spreadsheet}
+'''.strip()

@@ -50,6 +50,26 @@ def load(base_directory, filter_settings=None, frequencies=None):
     return series
 
 
+def load_analysis(base_directory, filter_settings):
+    filename = get_filename(base_directory, filter_settings)
+    search_pattern = os.path.join(base_folder, f'{filename}-*kHz-analyzed.txt')
+    result = [load_abr_analysis(f) for f in glob(search_pattern)]
+
+    names = ['analyzer', 'start', 'end', 'filter_lb', 'filter_ub', 'frequency']
+    freq, th, info, data = zip(*result)
+
+    keys = []
+    for f, i in zip(freq, info):
+        key = tuple(i[n] for n in names[:-1]) + (f,)
+        keys.append(key)
+
+    index = pd.MultiIndex.from_tuples(keys, names=names)
+    threshold = pd.Series(th, index=index, name='threshold')
+    peaks = pd.concat(data, keys=keys, names=names)
+    peaks.sort_index(inplace=True)
+    return threshold, peaks
+
+
 def is_processed(base_directory, frequency, options):
     from abr.parsers import registry
     if options.filter:

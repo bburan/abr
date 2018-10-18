@@ -1,8 +1,10 @@
-#!/usr/bin/env python
-# vim: set fileencoding=utf-8
+from pathlib import Path
 
-from matplotlib import transforms
+import matplotlib as mp
 from matplotlib.pylab import setp
+
+rc_path = Path(__file__).parent / 'matplotlibrc'
+mp.rc_file(str(rc_path))
 
 
 class StylePlot:

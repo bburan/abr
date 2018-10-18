@@ -1,14 +1,24 @@
 """
 Collection of classes for handling common data types
 """
-
-from __future__ import division
-from copy import deepcopy
+from enum import Enum
+import functools
+import operator
 
 from scipy import signal
 import numpy as np
 
-import operator
+
+@functools.total_ordering
+class Point(Enum):
+
+    PEAK = 'peak'
+    VALLEY = 'valley'
+
+    def __lt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value < other.value
+        return NotImplementedError
 
 
 class Waveform(object):
@@ -50,6 +60,12 @@ class Waveform(object):
         ub = int(round(tub / ((1/self.fs)*1000)))
         return func(self.y[lb:ub])
 
+    def mean(self, lb, ub):
+        return self.stat((lb, ub), np.mean)
+
+    def std(self, lb, ub):
+        return self.stat((lb, ub), np.std)
+
 
 class WaveformPoint(object):
     '''
@@ -63,14 +79,12 @@ class WaveformPoint(object):
         Type
     '''
 
-    PEAK = 'PEAK'
-    VALLEY = 'VALLEY'
 
     def __init__(self, parent, index, point):
         self.parent = parent
         self.index = index
-        self.point_type = point[0]
-        self.wave_number = point[1]
+        self.point_type = point[1]
+        self.wave_number = point[0]
 
     def _get_x(self):
         return self.parent.x[self.index]
@@ -82,7 +96,7 @@ class WaveformPoint(object):
     y = property(_get_y)
 
     def is_peak(self):
-        return self.point_type == self.PEAK
+        return self.point_type == Point.PEAK
 
     def is_valley(self):
         return self.point_type == self.VALLEY

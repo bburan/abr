@@ -9,9 +9,8 @@ from matplotlib.axes import Axes
 from matplotlib import transforms as T
 
 from abr.abrpanel import WaveformPlot
-from abr.datatype import ABRSeries, WaveformPoint
+from abr.datatype import ABRSeries, WaveformPoint, Point
 from abr.peakdetect import find_np, iterator_np
-from abr.parsers import registry
 
 # Maximum spacing, in seconds, between positive and negative points of wave.
 MAX_PN_DELTA = 0.25
@@ -76,7 +75,6 @@ class WaveformPresenter(Atom):
 
     figure = Typed(Figure, {})
     axes = Typed(Axes)
-    options = Typed(object)
     model = Typed(ABRSeries)
 
     current = Property()
@@ -94,16 +92,18 @@ class WaveformPresenter(Atom):
     N = Bool(False)
     P = Bool(False)
 
+    # Still feels like a hack?
+    n_waves = Int()
+    parser = Value()
+
     def _default_axes(self):
         axes = self.figure.add_axes([0.1, 0.1, 0.8, 0.8])
-        font = {'fontsize': 14, 'fontweight': 'bold'}
-        axes.set_xlabel('Time (msec)', font)
-        axes.set_ylabel('Amplitude (uV)', font)
-        axes.set_yticks([])
+        axes.set_xlabel('Time (msec)')
         return axes
 
-    def __init__(self, options):
-        self.options = options
+    def __init__(self, parser, n_waves):
+        self.parser = parser
+        self.n_waves = n_waves
 
     def load(self, model):
         self._current = 0
@@ -126,8 +126,6 @@ class WaveformPresenter(Atom):
             raise ValueError('Threshold not set')
         if not self.P or not self.N:
             raise ValueError('Waves not identified')
-        msg = registry.save(self.model, self.options)
-        self.close()
 
     def update(self):
         for p in self.plots:
@@ -224,24 +222,26 @@ class WaveformPresenter(Atom):
             nzc_algorithm_kw = {'min_latency': cur.min_latency}
             try:
                 prev = self.model.waveforms[i+1]
-                i_peaks = self.getindices(prev, WaveformPoint.PEAK)
+                i_peaks = self.getindices(prev, Point.PEAK)
                 a_peaks = prev.y[i_peaks]
                 seeds = list(zip(i_peaks, a_peaks))
                 guess_algorithm_kw = {'seeds': seeds}
                 p_indices = find_np(cur.fs, cur.y, guess_algorithm='seed',
                                     nzc_algorithm='noise',
-                                    n=self.options.n_waves,
+                                    n=self.n_waves,
                                     guess_algorithm_kw=guess_algorithm_kw,
                                     nzc_algorithm_kw=nzc_algorithm_kw)
             except IndexError:
-                p_indices = find_np(cur.fs, cur.y, n=self.options.n_waves,
+                p_indices = find_np(cur.fs, cur.y, n=self.n_waves,
                                     nzc_algorithm='temporal',
                                     nzc_algorithm_kw=nzc_algorithm_kw)
             for i, v in enumerate(p_indices):
-                self.setpoint(cur, (WaveformPoint.PEAK, i+1), v)
+                point = i+1, Point.PEAK
+                self.setpoint(cur, point, v)
+
         self.P = True
         self.current = len(self.model.waveforms)-1
-        self.toggle = 'PEAK', 1
+        self.toggle = 1, Point.PEAK
         self.iterator = self.get_iterator()
         self.update()
 
@@ -251,7 +251,7 @@ class WaveformPresenter(Atom):
             index = self.model.waveforms[i+1].points[self.toggle].index
             amplitude = self.model.waveforms[i+1].y[index]
             seeds = [(index, amplitude)]
-            if self.toggle[0] == WaveformPoint.PEAK:
+            if self.toggle[1] == Point.PEAK:
                 index, = find_np(cur.fs, cur.y, guess_algorithm="seed", n=1,
                                  guess_algorithm_kw={'seeds': seeds},
                                  nzc_algorithm='noise')
@@ -267,29 +267,30 @@ class WaveformPresenter(Atom):
             start = len(self.model.waveforms)
         for i in reversed(range(start)):
             cur = self.model.waveforms[i]
-            p_indices = self.getindices(cur, WaveformPoint.PEAK)
+            p_indices = self.getindices(cur, Point.PEAK)
             bounds = np.concatenate((p_indices, np.array([len(cur.y)-1])))
             try:
                 prev = self.model.waveforms[i+1]
-                i_valleys = self.getindices(prev, WaveformPoint.VALLEY)
+                i_valleys = self.getindices(prev, Point.VALLEY)
                 a_valleys = prev.y[i_valleys]
                 seeds = list(zip(i_valleys, a_valleys))
                 n_indices = find_np(cur.fs, -cur.y, guess_algorithm='seed',
                                     guess_algorithm_kw={'seeds': seeds},
                                     bounds=bounds, nzc_algorithm='noise',
                                     nzc_algorithm_kw={'dev': 0.5},
-                                    n=self.options.n_waves)
+                                    n=self.n_waves)
             except IndexError:
                 n_indices = find_np(cur.fs, -cur.y, bounds=bounds,
                                     guess_algorithm='y_fun',
                                     nzc_algorithm='noise',
                                     nzc_algorithm_kw={'dev': 0.5},
-                                    n=self.options.n_waves)
+                                    n=self.n_waves)
             for i, v in enumerate(n_indices):
-                self.setpoint(cur, (WaveformPoint.VALLEY, i+1), v)
+                point = i+1, Point.VALLEY
+                self.setpoint(cur, point, v)
         self.N = True
         self.current = len(self.model.waveforms)-1
-        self.toggle = 'VALLEY', 1
+        self.toggle = 1, Point.VALLEY
         self.iterator = self.get_iterator()
         self.update()
 
@@ -310,7 +311,7 @@ class WaveformPresenter(Atom):
             return
         waveform = self.model.waveforms[self.current]
         start_index = waveform.points[self.toggle].index
-        if self.toggle[0] == WaveformPoint.PEAK:
+        if self.toggle[1] == Point.PEAK:
             iterator = iterator_np(waveform.fs, waveform.y, start_index)
         else:
             iterator = iterator_np(waveform.fs, -waveform.y, start_index)
@@ -330,21 +331,19 @@ class WaveformPresenter(Atom):
 class SerialWaveformPresenter(WaveformPresenter):
 
     unprocessed = List()
-    current_model = Int()
+    current_model = Int(-1)
 
     def __init__(self, unprocessed, options):
+        super().__init__(options)
         self.unprocessed = unprocessed
-        self.options = options
         self.load_next()
-        self.current_model = -1
 
     def load_prior(self):
         if self.current_model < 0:
             return
         self.current_model -= 1
         filename, frequency = self.unprocessed[self.current_model]
-        model = registry.load(filename, self.options,
-                              frequencies=[frequency])[0]
+        model = self.parser.load(filename, frequencies=[frequency])[0]
         self.load(model)
 
     def load_next(self):
@@ -352,9 +351,9 @@ class SerialWaveformPresenter(WaveformPresenter):
             return
         self.current_model += 1
         filename, frequency = self.unprocessed[self.current_model]
-        model = registry.load(filename, self.options,
-                              frequencies=[frequency])[0]
+        model = self.parser.load(filename, frequencies=[frequency])[0]
         self.load(model)
 
-    def close(self):
+    def save(self):
+        super().save()
         self.load_next()

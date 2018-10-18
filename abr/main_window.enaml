@@ -8,7 +8,7 @@ from enaml.widgets.api import (MainWindow, DockArea, DockItem, PushButton,
                                Container, MPLCanvas, Feature, ProgressBar,
                                Label, HGroup, VGroup)
 
-from abr.parsers import registry
+from .datatype import Point
 
 
 def bind(figure, presenter):
@@ -58,9 +58,9 @@ def onpress(presenter, event):
         elif event.key == 'n':
             presenter.normalized = not presenter.normalized
         elif event.key in ('1', '2', '3', '4', '5'):
-            presenter.toggle = 'PEAK', int(event.key)
+            presenter.toggle = int(event.key), Point.PEAK
         elif event.key in ('alt+1', 'alt+2', 'alt+3', 'alt+4', 'alt+5'):
-            presenter.toggle = 'VALLEY', int(event.key[-1])
+            presenter.toggle = int(event.key[-1]), Point.VALLEY
         elif event.key == 'pagedown':
             presenter.load_next()
         elif event.key == 'pageup':
@@ -117,9 +117,9 @@ enamldef MPLDockItem(DockItem):
                 deferred_call(bind, figure, presenter)
 
 
-def add_dock_item(dock_area, model, path, options):
+def add_dock_item(dock_area, model, path, parser, n_waves):
     from abr.presenter import WaveformPresenter
-    presenter = WaveformPresenter(options)
+    presenter = WaveformPresenter(parser, n_waves)
     items = dock_area.dock_items()
     n_items = len(items)
 
@@ -135,9 +135,21 @@ def add_dock_item(dock_area, model, path, options):
     presenter.load(model)
 
 
+def load_files(parser, filenames, dock_area, n_waves):
+    for filename in filenames:
+        for model in parser.load(filename):
+            try:
+                add_dock_item(dock_area, model, filename, parser, n_waves)
+            except FileNotFoundError:
+                mesg = 'Could not load ABR data from {}'.format(path)
+                critical(None, 'Could not load file', mesg)
+
+
 enamldef DNDWindow(MainWindow):
 
-    attr options
+    attr parser
+    attr n_waves
+
     initial_size = (600, 900)
 
     Container:
@@ -152,14 +164,10 @@ enamldef DNDWindow(MainWindow):
 
             drop => (event):
                 text = event.mime_data().data('text/uri-list').decode('utf-8')
+                filenames = []
                 for t in text.strip().split('\n'):
-                    try:
-                        t = urllib.parse.unquote(t).strip()
-                        fragments = urllib.parse.urlsplit(t)
-                        path = fragments.path
-                        for model in registry.load(path, options):
-                            add_dock_item(dock_area, model, path, options)
-
-                    except FileNotFoundError:
-                        mesg = 'Could not load ABR data from {}'.format(path)
-                        critical(None, 'Could not load file', mesg)
+                    t = urllib.parse.unquote(t).strip()
+                    fragments = urllib.parse.urlsplit(t)
+                    path = fragments.path
+                    filenames.append(path)
+                load_files(parser, filenames, dock_area, n_waves)
