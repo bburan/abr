@@ -27,6 +27,7 @@ def load(base_directory, filter_settings=None, frequencies=None):
 
     data = pd.io.parsers.read_csv(filename, header=[0, 1], index_col=0).T
     fs = np.mean(np.diff(data.columns.values)**-1)
+    data.columns *= 1e3
     waveforms = {}
     for (frequency, level), w in data.iterrows():
         frequency = float(frequency)
@@ -37,8 +38,7 @@ def load(base_directory, filter_settings=None, frequencies=None):
         frequency = float(frequency)*1e-3
         level = float(level)
         stack = waveforms.setdefault(frequency, [])
-        waveform = ABRWaveform(fs, w.values[np.newaxis], level, filter=None,
-                               min_latency=1.5, t0=w.index.min()*1e3)
+        waveform = ABRWaveform(fs, w, level)
         stack.append(waveform)
 
     series = []
@@ -50,27 +50,7 @@ def load(base_directory, filter_settings=None, frequencies=None):
     return series
 
 
-def load_analysis(base_directory, filter_settings):
-    filename = get_filename(base_directory, filter_settings)
-    search_pattern = os.path.join(base_folder, f'{filename}-*kHz-analyzed.txt')
-    result = [load_abr_analysis(f) for f in glob(search_pattern)]
-
-    names = ['analyzer', 'start', 'end', 'filter_lb', 'filter_ub', 'frequency']
-    freq, th, info, data = zip(*result)
-
-    keys = []
-    for f, i in zip(freq, info):
-        key = tuple(i[n] for n in names[:-1]) + (f,)
-        keys.append(key)
-
-    index = pd.MultiIndex.from_tuples(keys, names=names)
-    threshold = pd.Series(th, index=index, name='threshold')
-    peaks = pd.concat(data, keys=keys, names=names)
-    peaks.sort_index(inplace=True)
-    return threshold, peaks
-
-
-def is_processed(base_directory, frequency, options):
+def is_processed(base_directory, frequency, filter_settings, user):
     from abr.parsers import registry
     if options.filter:
         filter_settings = {
@@ -84,14 +64,7 @@ def is_processed(base_directory, frequency, options):
     return os.path.exists(save_filename)
 
 
-def get_frequencies(base_directory, options):
-    if options.filter:
-        filter_settings = {
-            'highpass': options.highpass,
-            'lowpass': options.lowpass,
-        }
-    else:
-        filter_settings = None
+def get_frequencies(base_directory, filter_settings):
     filename = get_filename(base_directory, filter_settings)
     data = pd.io.parsers.read_csv(filename, header=[0, 1], index_col=0).T
     frequencies = np.unique(data.index.get_level_values('frequency'))

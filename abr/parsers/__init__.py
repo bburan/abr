@@ -109,7 +109,8 @@ class Parser(object):
                 columns.append(f'{point_type_code}{point_number} {measure}')
 
         columns = '\t'.join(columns)
-        spreadsheet = '\n'.join(waveform_string(w) for w in reversed(model.waveforms))
+        spreadsheet = '\n'.join(waveform_string(w) \
+                                for w in reversed(model.waveforms))
         content = CONTENT.format(threshold=model.threshold,
                                  frequency=model.freq,
                                  filter_history=filter_history,

@@ -1,5 +1,5 @@
 import numpy as np
-import operator
+import pandas as pd
 
 from atom.api import (Atom, Typed, Dict, List, Bool, Int, Float, Tuple,
                       Property, Value)
@@ -10,7 +10,7 @@ from matplotlib import transforms as T
 
 from abr.abrpanel import WaveformPlot
 from abr.datatype import ABRSeries, WaveformPoint, Point
-from abr.peakdetect import find_np, iterator_np
+from abr.peakdetect import peak_iterator, generate_latencies_skewnorm, guess_iter
 
 # Maximum spacing, in seconds, between positive and negative points of wave.
 MAX_PN_DELTA = 0.25
@@ -65,6 +65,7 @@ def plot_model(axes, model):
         axes.text(-0.05, 0, f'{waveform.level}', transform=text_trans)
 
     axes.set_yticks([])
+    axes.grid()
     for spine in ('top', 'left', 'right'):
         axes.spines[spine].set_visible(False)
 
@@ -98,7 +99,6 @@ class WaveformPresenter(Atom):
 
     def _default_axes(self):
         axes = self.figure.add_axes([0.1, 0.1, 0.8, 0.8])
-        axes.set_xlabel('Time (msec)')
         return axes
 
     def __init__(self, parser, n_waves):
@@ -108,6 +108,7 @@ class WaveformPresenter(Atom):
     def load(self, model):
         self._current = 0
         self.axes.clear()
+        self.axes.set_xlabel('Time (msec)')
         self.model = model
         self.plots, self.boxes = plot_model(self.axes, self.model)
         self.normalized = False
@@ -202,119 +203,56 @@ class WaveformPresenter(Atom):
     def _set_toggle(self, value):
         if value == self.toggle:
             return
-
         for plot in self.plots:
             point = plot.points.get(self.toggle)
             if point is not None:
                 point.current = False
-
         self._toggle = value
         for plot in self.plots:
             point = plot.points.get(value)
             if point is not None:
                 point.current = True
+        self.update_iterator()
+        self.update()
 
-    def guess_p(self, start=None):
-        if start is None:
-            start = len(self.model.waveforms)
-        for i in reversed(range(start)):
-            cur = self.model.waveforms[i]
-            nzc_algorithm_kw = {'min_latency': cur.min_latency}
-            try:
-                prev = self.model.waveforms[i+1]
-                i_peaks = self.getindices(prev, Point.PEAK)
-                a_peaks = prev.y[i_peaks]
-                seeds = list(zip(i_peaks, a_peaks))
-                guess_algorithm_kw = {'seeds': seeds}
-                p_indices = find_np(cur.fs, cur.y, guess_algorithm='seed',
-                                    nzc_algorithm='noise',
-                                    n=self.n_waves,
-                                    guess_algorithm_kw=guess_algorithm_kw,
-                                    nzc_algorithm_kw=nzc_algorithm_kw)
-            except IndexError:
-                p_indices = find_np(cur.fs, cur.y, n=self.n_waves,
-                                    nzc_algorithm='temporal',
-                                    nzc_algorithm_kw=nzc_algorithm_kw)
-            for i, v in enumerate(p_indices):
-                point = i+1, Point.PEAK
-                self.setpoint(cur, point, v)
+    def update_iterator(self):
+        waveform = self.model.waveforms[self.current]
+        point = waveform.points[self._toggle]
+        if point.is_peak():
+            self.iterator = peak_iterator(waveform, point.index)
+        else:
+            self.iterator = peak_iterator(waveform, point.index, invert=True)
+        next(self.iterator)
 
-        self.P = True
+    def guess(self):
+        if not self.P:
+            self.model.guess_p()
+            ptype = Point.PEAK
+            self.P = True
+        elif not self.N:
+            self.model.guess_n()
+            ptype = Point.VALLEY
+            self.N = True
+        else:
+            return
         self.current = len(self.model.waveforms)-1
-        self.toggle = 1, Point.PEAK
-        self.iterator = self.get_iterator()
+        self.toggle = 1, ptype
         self.update()
 
     def update_point(self):
-        for i in reversed(range(self.current)):
-            cur = self.model.waveforms[i]
-            index = self.model.waveforms[i+1].points[self.toggle].index
-            amplitude = self.model.waveforms[i+1].y[index]
-            seeds = [(index, amplitude)]
-            if self.toggle[1] == Point.PEAK:
-                index, = find_np(cur.fs, cur.y, guess_algorithm="seed", n=1,
-                                 guess_algorithm_kw={'seeds': seeds},
-                                 nzc_algorithm='noise')
-            else:
-                index, = find_np(cur.fs, -cur.y, guess_algorithm="seed", n=1,
-                                 guess_algorithm_kw={'seeds': seeds},
-                                 nzc_algorithm='noise')
-            self.setpoint(cur, self.toggle, index)
+        level = self.model.waveforms[self.current].level
+        self.model.update_guess(level, self.toggle)
         self.update()
-
-    def guess_n(self, start=None):
-        if start is None:
-            start = len(self.model.waveforms)
-        for i in reversed(range(start)):
-            cur = self.model.waveforms[i]
-            p_indices = self.getindices(cur, Point.PEAK)
-            bounds = np.concatenate((p_indices, np.array([len(cur.y)-1])))
-            try:
-                prev = self.model.waveforms[i+1]
-                i_valleys = self.getindices(prev, Point.VALLEY)
-                a_valleys = prev.y[i_valleys]
-                seeds = list(zip(i_valleys, a_valleys))
-                n_indices = find_np(cur.fs, -cur.y, guess_algorithm='seed',
-                                    guess_algorithm_kw={'seeds': seeds},
-                                    bounds=bounds, nzc_algorithm='noise',
-                                    nzc_algorithm_kw={'dev': 0.5},
-                                    n=self.n_waves)
-            except IndexError:
-                n_indices = find_np(cur.fs, -cur.y, bounds=bounds,
-                                    guess_algorithm='y_fun',
-                                    nzc_algorithm='noise',
-                                    nzc_algorithm_kw={'dev': 0.5},
-                                    n=self.n_waves)
-            for i, v in enumerate(n_indices):
-                point = i+1, Point.VALLEY
-                self.setpoint(cur, point, v)
-        self.N = True
-        self.current = len(self.model.waveforms)-1
-        self.toggle = 1, Point.VALLEY
-        self.iterator = self.get_iterator()
-        self.update()
-
-    def setpoint(self, waveform, point, index):
-        try:
-            waveform.points[point].index = index
-        except KeyError:
-            waveform.points[point] = WaveformPoint(waveform, index, point)
-        self.update()
-
-    def getindices(self, waveform, point):
-        points = [v for v in waveform.points.values() if v.point_type == point]
-        points.sort(key=operator.attrgetter('wave_number'))
-        return [p.index for p in points]
 
     def get_iterator(self):
         if self.toggle is None:
             return
         waveform = self.model.waveforms[self.current]
-        start_index = waveform.points[self.toggle].index
-        if self.toggle[1] == Point.PEAK:
-            iterator = iterator_np(waveform.fs, waveform.y, start_index)
+        point = waveform.points[self.toggle]
+        if point.is_peak():
+            iterator = peak_iterator(waveform, point.index)
         else:
-            iterator = iterator_np(waveform.fs, -waveform.y, start_index)
+            iterator = peak_iterator(waveform, point.index, invert=True)
         next(iterator)
         return iterator
 

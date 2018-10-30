@@ -39,10 +39,7 @@ def onpress(presenter, event):
         elif event.key in ('=', '+'):
             presenter.scale *= 0.9
         elif event.key == 'i':
-            if not presenter.P:
-                presenter.guess_p()
-            elif not presenter.N:
-                presenter.guess_n()
+            presenter.guess()
         elif event.key == 'u':
             presenter.update_point()
         elif event.key == 's':
