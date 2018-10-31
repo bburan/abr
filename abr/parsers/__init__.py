@@ -52,13 +52,17 @@ def filter_string(waveform):
 def load_analysis(fname):
     th_match = re.compile('Threshold \(dB SPL\): ([\w.]+)')
     freq_match = re.compile('Frequency \(kHz\): ([\d.]+)')
-    with open(fname) as f:
-        text = f.read()
+    with open(fname) as fh:
+        text = fh.readline()
         th = th_match.search(text).group(1)
         th = None if th == 'None' else float(th)
+        text = fh.readline()
         freq = float(freq_match.search(text).group(1))
-    data = pd.io.parsers.read_csv(fname, sep='\t', skiprows=5,
-                                  index_col='Level')
+
+        for line in fh:
+            if line.startswith('NOTE'):
+                break
+        data = pd.io.parsers.read_csv(fh, sep='\t', index_col='Level')
     return (freq, th, data)
 
 

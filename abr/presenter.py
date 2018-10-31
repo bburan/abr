@@ -10,7 +10,6 @@ from matplotlib import transforms as T
 
 from abr.abrpanel import WaveformPlot
 from abr.datatype import ABRSeries, WaveformPoint, Point
-from abr.peakdetect import peak_iterator, generate_latencies_skewnorm, guess_iter
 
 # Maximum spacing, in seconds, between positive and negative points of wave.
 MAX_PN_DELTA = 0.25
@@ -24,16 +23,19 @@ def plot_model(axes, model):
     text_trans = T.blended_transform_factory(axes.figure.transFigure,
                                              axes.transAxes)
 
+
     limits = [(w.y.min(), w.y.max()) for w in model.waveforms]
     base_scale = np.mean(np.abs(np.array(limits)))
 
     bscale_in_box = T.Bbox([[0, -base_scale], [1, base_scale]])
+    bscale_out_box = T.Bbox([[0, -1], [1, 1]])
     bscale_in = T.BboxTransformFrom(bscale_in_box)
-    bscale_out = T.BboxTransformTo(T.Bbox([[0, -1], [1, 1]]))
+    bscale_out = T.BboxTransformTo(bscale_out_box)
 
     tscale_in_box = T.Bbox([[0, -1], [1, 1]])
+    tscale_out_box = T.Bbox([[0, 0], [1, offset_step]])
     tscale_in = T.BboxTransformFrom(tscale_in_box)
-    tscale_out = T.BboxTransformTo(T.Bbox([[0, 0], [1, offset_step]]))
+    tscale_out = T.BboxTransformTo(tscale_out_box)
 
     boxes = {
         'tscale': tscale_in_box,
@@ -44,8 +46,8 @@ def plot_model(axes, model):
     for i, waveform in enumerate(model.waveforms):
         y_min, y_max = waveform.y.min(), waveform.y.max()
         tnorm_in_box = T.Bbox([[0, -1], [1, 1]])
-        tnorm_in = T.BboxTransformFrom(tnorm_in_box)
         tnorm_out_box = T.Bbox([[0, -1], [1, 1]])
+        tnorm_in = T.BboxTransformFrom(tnorm_in_box)
         tnorm_out = T.BboxTransformTo(tnorm_out_box)
         boxes['tnorm'].append(tnorm_in_box)
 
@@ -85,7 +87,6 @@ class WaveformPresenter(Atom):
     normalized = Property()
     boxes = Dict()
 
-    iterator = Value()
 
     _current = Int()
     _toggle = Value()
@@ -103,10 +104,9 @@ class WaveformPresenter(Atom):
 
     def __init__(self, parser, n_waves):
         self.parser = parser
-        self.n_waves = n_waves
 
     def load(self, model):
-        self._current = 0
+        #self._current = 0
         self.axes.clear()
         self.axes.set_xlabel('Time (msec)')
         self.model = model
@@ -118,23 +118,20 @@ class WaveformPresenter(Atom):
         # Set current before toggle. Ordering is important.
         self.current = len(self.model.waveforms)-1
         self.toggle = None
-        self.iterator = None
-        if self.figure.canvas is not None:
-            self.figure.canvas.draw()
+        self.update()
 
     def save(self):
         if  np.isnan(self.model.threshold):
             raise ValueError('Threshold not set')
         if not self.P or not self.N:
             raise ValueError('Waves not identified')
+        self.parser.save(self.model)
 
     def update(self):
         for p in self.plots:
             p.update()
-        try:
+        if self.axes.figure is not None:
             self.axes.figure.canvas.draw()
-        except:
-            pass
 
     def _get_current(self):
         return self._current
@@ -157,7 +154,7 @@ class WaveformPresenter(Atom):
             return
         box = np.array([[0, -value], [1, value]])
         self.boxes['tscale'].set_points(box)
-        self.figure.canvas.draw()
+        self.update()
 
     def _get_normalized(self):
         box = self.boxes['tnorm'][0]
@@ -175,10 +172,7 @@ class WaveformPresenter(Atom):
                 box.set_points(points)
         label = 'normalized' if value else 'raw'
         self.axes.set_title(label)
-        try:
-            self.figure.canvas.draw()
-        except AttributeError:
-            pass
+        self.update()
 
     def set_suprathreshold(self):
         self.model.threshold = -np.inf
@@ -194,14 +188,14 @@ class WaveformPresenter(Atom):
         self.update()
 
     def set_threshold(self):
-        self.model.threshold = self.model.waveforms[self.current].level
+        self.model.threshold = self.get_current_waveform().level
         self.update()
 
     def _get_toggle(self):
         return self._toggle
 
     def _set_toggle(self, value):
-        if value == self.toggle:
+        if value == self._toggle:
             return
         for plot in self.plots:
             point = plot.points.get(self.toggle)
@@ -212,17 +206,7 @@ class WaveformPresenter(Atom):
             point = plot.points.get(value)
             if point is not None:
                 point.current = True
-        self.update_iterator()
         self.update()
-
-    def update_iterator(self):
-        waveform = self.model.waveforms[self.current]
-        point = waveform.points[self._toggle]
-        if point.is_peak():
-            self.iterator = peak_iterator(waveform, point.index)
-        else:
-            self.iterator = peak_iterator(waveform, point.index, invert=True)
-        next(self.iterator)
 
     def guess(self):
         if not self.P:
@@ -235,6 +219,7 @@ class WaveformPresenter(Atom):
             self.N = True
         else:
             return
+        self.update()
         self.current = len(self.model.waveforms)-1
         self.toggle = 1, ptype
         self.update()
@@ -244,26 +229,16 @@ class WaveformPresenter(Atom):
         self.model.update_guess(level, self.toggle)
         self.update()
 
-    def get_iterator(self):
-        if self.toggle is None:
-            return
-        waveform = self.model.waveforms[self.current]
-        point = waveform.points[self.toggle]
-        if point.is_peak():
-            iterator = peak_iterator(waveform, point.index)
-        else:
-            iterator = peak_iterator(waveform, point.index, invert=True)
-        next(iterator)
-        return iterator
-
     def move_selected_point(self, step):
-        # No point is currently selected.  Ignore the request
-        if self.toggle is None:
-            return
-        waveform = self.model.waveforms[self.current]
-        waveform.points[self.toggle].index = self.iterator.send(step)
-        self.plots[self.current].points[self.toggle].update()
+        point = self.get_current_point()
+        point.move(step)
         self.update()
+
+    def get_current_waveform(self):
+        return self.model.waveforms[self.current]
+
+    def get_current_point(self):
+        return self.get_current_waveform().points[self.toggle]
 
 
 class SerialWaveformPresenter(WaveformPresenter):

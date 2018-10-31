@@ -9,8 +9,10 @@ import numpy as np
 import pandas as pd
 from scipy import signal
 
+from atom.api import Atom, Int, Typed, Value
+
 from .peakdetect import (generate_latencies_bound, generate_latencies_skewnorm,
-                         guess, guess_iter)
+                         guess, guess_iter, peak_iterator)
 
 
 @functools.total_ordering
@@ -40,7 +42,7 @@ class ABRWaveform:
 
     @property
     def y(self):
-        return self.signal.values
+        return signal.detrend(self.signal.values)
 
     def is_subthreshold(self):
         if self.series.threshold is None:
@@ -52,18 +54,14 @@ class ABRWaveform:
             return True
         return self.level >= self.series.threshold
 
-    def stat(self, bounds, func):
-        tlb = bounds[0]-self.t0
-        tub = bounds[1]-self.t0
-        lb = int(round(tlb / ((1/self.fs)*1000)))
-        ub = int(round(tub / ((1/self.fs)*1000)))
-        return func(self.y[lb:ub])
+    def stat(self, lb, ub, func):
+        return func(self.signal.loc[lb:ub])
 
     def mean(self, lb, ub):
-        return self.stat((lb, ub), np.mean)
+        return self.stat(lb, ub, np.mean)
 
     def std(self, lb, ub):
-        return self.stat((lb, ub), np.std)
+        return self.stat(lb, ub, np.std)
 
     def set_point(self, wave, ptype, index):
         if (wave, ptype) not in self.points:
@@ -72,17 +70,32 @@ class ABRWaveform:
         self.points[wave, ptype].index = int(index)
 
 
-class WaveformPoint(object):
+class WaveformPoint(Atom):
     '''
     Parameters
     ----------
     TODO
     '''
-    def __init__(self, parent, index, wave, ptype):
+    parent = Typed(ABRWaveform)
+    index = Int()
+    wave_number = Int()
+    point_type = Typed(Point)
+    iterator = Value()
+
+    def __init__(self, parent, index, wave_number, point_type):
+        # Order of setting attributes is important here
         self.parent = parent
+        self.point_type = point_type
+        self.wave_number = wave_number
+        invert = self.is_valley()
+        iterator = peak_iterator(parent, index, invert=invert)
+        next(iterator)
+        self.iterator = iterator
         self.index = index
-        self.point_type = ptype
-        self.wave_number = wave
+
+    def _observe_index(self, event):
+        if event['type'] == 'update':
+            self.iterator.send(('set', event['value']))
 
     @property
     def x(self):
@@ -100,14 +113,17 @@ class WaveformPoint(object):
 
     @property
     def latency(self):
+        latency = self.x
         if self.parent.is_subthreshold():
-            return -np.abs(self.x)
-        else:
-            return self.x
+            return -np.abs(latency)
+        return latency
 
     @property
     def amplitude(self):
-        return self.y
+        return self.parent.signal.iloc[self.index]
+
+    def move(self, step):
+        self.index = self.iterator.send(step)
 
 
 class ABRSeries(object):

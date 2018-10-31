@@ -119,4 +119,6 @@ def peak_iterator(waveform, index, invert=False):
             # Ensure step size is at least one period in length
             step_size = max(abs(step_size), 1/waveform.fs) * np.sign(step_size)
             index += round(step_size * waveform.fs)
+        elif step_mode == 'set':
+            index = step_size
         index = int(round(np.clip(index, 0, len(waveform.x)-1)))
