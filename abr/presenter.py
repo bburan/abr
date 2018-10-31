@@ -94,19 +94,17 @@ class WaveformPresenter(Atom):
     N = Bool(False)
     P = Bool(False)
 
-    # Still feels like a hack?
-    n_waves = Int()
     parser = Value()
 
     def _default_axes(self):
         axes = self.figure.add_axes([0.1, 0.1, 0.8, 0.8])
         return axes
 
-    def __init__(self, parser, n_waves):
+    def __init__(self, parser):
         self.parser = parser
 
     def load(self, model):
-        #self._current = 0
+        self._current = 0
         self.axes.clear()
         self.axes.set_xlabel('Time (msec)')
         self.model = model
@@ -130,7 +128,7 @@ class WaveformPresenter(Atom):
     def update(self):
         for p in self.plots:
             p.update()
-        if self.axes.figure is not None:
+        if self.axes.figure.canvas is not None:
             self.axes.figure.canvas.draw()
 
     def _get_current(self):
@@ -246,8 +244,8 @@ class SerialWaveformPresenter(WaveformPresenter):
     unprocessed = List()
     current_model = Int(-1)
 
-    def __init__(self, unprocessed, options):
-        super().__init__(options)
+    def __init__(self, parser, unprocessed):
+        super().__init__(parser)
         self.unprocessed = unprocessed
         self.load_next()
 

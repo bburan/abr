@@ -88,8 +88,16 @@ class Parser(object):
         self._module_name = f'abr.parsers.{file_format}'
         self._module = importlib.import_module(self._module_name)
 
-    def load(self, filename, frequencies=None):
-        return self._module.load(filename, self._filter_settings, frequencies)
+    def load(self, filename, frequencies=None, include_analysis=True):
+        data = self._module.load(filename, self._filter_settings, frequencies)
+        if include_analysis:
+            for series in data:
+                analyzed_filename = self.get_save_filename(series.filename,
+                                                           series.freq)
+                if os.path.exists(analyzed_filename):
+                    freq, th, peaks = load_analysis(analyzed_filename)
+                    series.threshold = th
+        return data
 
     def get_save_filename(self, filename, frequency):
         # Round frequency to nearest 8 places to minimize floating-point
@@ -125,8 +133,8 @@ class Parser(object):
         with open(filename, 'w') as fh:
             fh.writelines(content)
 
-    def find_unprocessed(self, dirname, options):
-        return self._module.find_unprocessed(dirname, options)
+    def find_unprocessed(self, dirname):
+        return self._module.find_unprocessed(dirname, self)
 
 
 CONTENT = '''

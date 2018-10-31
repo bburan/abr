@@ -20,7 +20,7 @@ def main():
     options = parse_args(parser)
 
     app = QtApplication()
-    view = DNDWindow(parser=options['parser'], n_waves=options['n_waves'])
+    view = DNDWindow(parser=options['parser'])
 
     dock_area = view.find('dock_area')
     parser = options['parser']

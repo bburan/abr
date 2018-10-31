@@ -69,6 +69,16 @@ class ABRWaveform:
             self.points[wave, ptype] = point
         self.points[wave, ptype].index = int(index)
 
+    def _set_points(self, guesses, ptype):
+        for wave, wave_guess in guesses.iterrows():
+            index = wave_guess['index']
+            if not np.isfinite(index):
+                index = np.searchsorted(self.x , wave_guess['x'])
+                index = np.clip(index, 0, len(self.x)-1)
+            else:
+                index = int(index)
+            self.set_point(wave, ptype, index)
+
 
 class WaveformPoint(Atom):
     '''
@@ -170,5 +180,4 @@ class ABRSeries(object):
     def _set_points(self, level_guesses, ptype):
         for level, level_guess in level_guesses.items():
             waveform = self.get_level(level)
-            for wave, wave_guess in level_guess.iterrows():
-                waveform.set_point(wave, ptype, int(wave_guess['index']))
+            waveform._set_points(level_guess, ptype)

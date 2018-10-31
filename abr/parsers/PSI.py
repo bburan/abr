@@ -23,6 +23,7 @@ def get_filename(base_directory, filter_settings):
 
 
 def load(base_directory, filter_settings=None, frequencies=None):
+
     filename = get_filename(base_directory, filter_settings)
 
     data = pd.io.parsers.read_csv(filename, header=[0, 1], index_col=0).T
@@ -50,17 +51,9 @@ def load(base_directory, filter_settings=None, frequencies=None):
     return series
 
 
-def is_processed(base_directory, frequency, filter_settings, user):
-    from abr.parsers import registry
-    if options.filter:
-        filter_settings = {
-            'highpass': options.highpass,
-            'lowpass': options.lowpass,
-        }
-    else:
-        filter_settings = None
-    filename = get_filename(base_directory, filter_settings)[:-4]
-    save_filename = registry.get_save_filename(filename, frequency, options)
+def is_processed(base_directory, frequency, parser):
+    filename = get_filename(base_directory, parser._filter_settings)[:-4]
+    save_filename = parser.get_save_filename(filename, frequency)
     return os.path.exists(save_filename)
 
 
@@ -71,11 +64,12 @@ def get_frequencies(base_directory, filter_settings):
     return frequencies.astype('float')
 
 
-def find_unprocessed(dirname, options):
+def find_unprocessed(dirname, parser):
     wildcard = os.path.join(dirname, '*abr*')
     unprocessed = []
     for base_directory in glob.glob(wildcard):
-        for frequency in get_frequencies(base_directory, options):
-            if not is_processed(base_directory, frequency*1e-3, options):
+        for frequency in get_frequencies(base_directory,
+                                         parser._filter_settings):
+            if not is_processed(base_directory, frequency*1e-3, parser):
                 unprocessed.append((base_directory, frequency))
     return unprocessed

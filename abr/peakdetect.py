@@ -51,10 +51,7 @@ def guess_peaks(metrics, latency):
             guess[i] = metrics.loc[m]
             metrics = metrics.loc[m+1:]
         else:
-            t = metrics.iloc[0].copy()
-            t['x'] = l.mean()
-            t['y'] = 0
-            guess[i] = t
+            guess[i] = {'x': l.mean(), 'y': 0}
 
     return pd.DataFrame(guess).T
 
@@ -72,10 +69,10 @@ def generate_latencies_bound(guess, max_time=8.5):
     return latency
 
 
-def generate_latencies_skewnorm(guess, skew=5):
+def generate_latencies_skewnorm(guess, skew=3):
     latencies = {}
     for w, row in guess.iterrows():
-        latencies[w] = stats.skewnorm(skew, row['x'], 0.2)
+        latencies[w] = stats.skewnorm(skew, row['x'], 0.1)
     return latencies
 
 
@@ -103,7 +100,8 @@ def peak_iterator(waveform, index, invert=False):
     '''
     Coroutine that steps through the possible guesses for the peak
     '''
-    metrics = find_peaks(waveform, invert=invert)
+    metrics = find_peaks(waveform, distance=0.25e-3, prominence=25,
+                         invert=invert)
 
     while True:
         step_mode, step_size = yield index
