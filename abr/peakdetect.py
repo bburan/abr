@@ -7,9 +7,9 @@ from scipy import signal, stats
 
 INITIAL_P_LATENCIES = {
     1: stats.norm(1.5, 0.5),
-    2: stats.norm(2.5, 1),
-    3: stats.norm(3.0, 1),
-    4: stats.norm(4.0, 1),
+    #2: stats.norm(2.5, 1),
+    #3: stats.norm(3.0, 1),
+    #4: stats.norm(4.0, 1),
     5: stats.norm(5.0, 2),
 }
 

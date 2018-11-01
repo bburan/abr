@@ -4,9 +4,9 @@ import urllib
 from enaml.application import deferred_call
 from enaml.layout.api import InsertItem, InsertTab
 from enaml.stdlib.message_box import critical
-from enaml.widgets.api import (MainWindow, DockArea, DockItem, PushButton,
+from enaml.widgets.api import (CheckBox, DockArea, DockItem, PushButton,
                                Container, MPLCanvas, Feature, ProgressBar,
-                               Label, HGroup, VGroup)
+                               Label, HGroup, MainWindow, VGroup)
 
 from .datatype import Point
 
@@ -67,10 +67,20 @@ def onpress(presenter, event):
         #critical(None, 'Error', str(e))
 
 
+def get_title(frequency, filename, show_filename):
+    if show_filename:
+        filename = os.path.split(os.path.split(filename)[0])[1]
+        return '{} kHz: {}'.format(frequency, filename)
+    else:
+        return '{} kHz'.format(frequency)
+
+
 enamldef SerialWindow(MainWindow):
 
     attr presenter
     initial_size = (600, 900)
+    title << get_title(presenter.model.freq, presenter.model.filename,
+                       show_filename.checked)
 
     Container:
 
@@ -92,8 +102,10 @@ enamldef SerialWindow(MainWindow):
                     clicked ::
                         presenter.set_subthreshold()
 
-        Label:
-            text << '{} kHz'.format(presenter.model.freq)
+            VGroup:
+                CheckBox: show_filename:
+                    checked = False
+                    text = 'Show filename'
 
         MPLCanvas: canvas:
             figure << presenter.figure
