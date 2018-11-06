@@ -68,8 +68,12 @@ def find_unprocessed(dirname, parser):
     wildcard = os.path.join(dirname, '*abr*')
     unprocessed = []
     for base_directory in glob.glob(wildcard):
-        for frequency in get_frequencies(base_directory,
-                                         parser._filter_settings):
-            if not is_processed(base_directory, frequency*1e-3, parser):
-                unprocessed.append((base_directory, frequency))
+        try:
+            frequencies = get_frequencies(base_directory,
+                                          parser._filter_settings)
+            for frequency in frequencies:
+                if not is_processed(base_directory, frequency*1e-3, parser):
+                    unprocessed.append((base_directory, frequency))
+        except FileNotFoundError:
+            pass
     return unprocessed
