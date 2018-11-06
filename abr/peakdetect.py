@@ -62,10 +62,8 @@ def generate_latencies_bound(guess, max_time=8.5):
     for lb, ub in zip(waves[:-1], waves[1:]):
         t_lb = guess.loc[lb, 'x']
         t_ub = guess.loc[ub, 'x']
-        loc = t_lb
-        scale = t_ub - t_lb
-        latency[lb] = stats.uniform(loc, scale)
-    latency[ub] = stats.uniform(t_ub, max_time-t_ub)
+        latency[lb] = stats.truncnorm(t_lb, t_ub, t_lb, 0.25)
+    latency[ub] = stats.truncnorm(t_ub, max_time, t_ub, 0.25)
     return latency
 
 
