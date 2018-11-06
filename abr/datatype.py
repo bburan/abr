@@ -71,7 +71,7 @@ class ABRWaveform:
 
     def _set_points(self, guesses, ptype):
         for wave, wave_guess in guesses.iterrows():
-            index = wave_guess['index']
+            index = wave_guess.get('index', np.nan)
             if not np.isfinite(index):
                 index = np.searchsorted(self.x , wave_guess['x'])
                 index = np.clip(index, 0, len(self.x)-1)
