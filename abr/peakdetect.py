@@ -5,15 +5,6 @@ import pandas as pd
 from scipy import signal, stats
 
 
-INITIAL_P_LATENCIES = {
-    1: stats.norm(1.5, 0.5),
-    #2: stats.norm(2.5, 1),
-    #3: stats.norm(3.0, 1),
-    #4: stats.norm(4.0, 1),
-    5: stats.norm(5.0, 2),
-}
-
-
 def find_peaks(waveform, distance=0.5e-3, prominence=50, wlen=None,
                invert=False, detrend=True):
 
@@ -56,14 +47,17 @@ def guess_peaks(metrics, latency):
     return pd.DataFrame(guess).T
 
 
-def generate_latencies_bound(guess, max_time=8.5):
+def generate_latencies_bound(guess, max_time=8.5, sd=0.25):
     latency = {}
     waves = sorted(guess.index.values)
     for lb, ub in zip(waves[:-1], waves[1:]):
         t_lb = guess.loc[lb, 'x']
         t_ub = guess.loc[ub, 'x']
-        latency[lb] = stats.truncnorm(t_lb, t_ub, t_lb, 0.25)
-    latency[ub] = stats.truncnorm(t_ub, max_time, t_ub, 0.25)
+        b = (t_ub-t_lb)/sd
+        latency[lb] = stats.truncnorm(0, b, t_lb, sd)
+
+    b = (max_time-t_lb)/sd
+    latency[ub] = stats.truncnorm(0, b, t_ub, sd)
     return latency
 
 
@@ -74,9 +68,7 @@ def generate_latencies_skewnorm(guess, skew=3):
     return latencies
 
 
-def guess_iter(waveforms, latencies=None, invert=False):
-    if latencies is None:
-        latencies = INITIAL_P_LATENCIES
+def guess_iter(waveforms, latencies, invert=False):
     waveforms = sorted(waveforms, key=op.attrgetter('level'), reverse=True)
     guesses = {}
     for w in waveforms:

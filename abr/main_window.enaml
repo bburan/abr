@@ -64,7 +64,7 @@ def onpress(presenter, event):
             presenter.load_prior()
     except Exception as e:
         raise
-        #critical(None, 'Error', str(e))
+        critical(None, 'Error', str(e))
 
 
 def get_title(frequency, filename, show_filename):
@@ -126,9 +126,9 @@ enamldef MPLDockItem(DockItem):
                 deferred_call(bind, figure, presenter)
 
 
-def add_dock_item(dock_area, model, path, parser, n_waves):
+def add_dock_item(dock_area, model, path, parser):
     from abr.presenter import WaveformPresenter
-    presenter = WaveformPresenter(parser, n_waves)
+    presenter = WaveformPresenter(parser)
     items = dock_area.dock_items()
     n_items = len(items)
 
@@ -144,11 +144,11 @@ def add_dock_item(dock_area, model, path, parser, n_waves):
     presenter.load(model)
 
 
-def load_files(parser, filenames, dock_area, n_waves):
+def load_files(parser, filenames, dock_area):
     for filename in filenames:
         for model in parser.load(filename):
             try:
-                add_dock_item(dock_area, model, filename, parser, n_waves)
+                add_dock_item(dock_area, model, filename, parser)
             except FileNotFoundError:
                 mesg = 'Could not load ABR data from {}'.format(path)
                 critical(None, 'Could not load file', mesg)
@@ -157,7 +157,6 @@ def load_files(parser, filenames, dock_area, n_waves):
 enamldef DNDWindow(MainWindow):
 
     attr parser
-    attr n_waves
 
     initial_size = (600, 900)
 
@@ -179,4 +178,4 @@ enamldef DNDWindow(MainWindow):
                     fragments = urllib.parse.urlsplit(t)
                     path = fragments.path
                     filenames.append(path)
-                load_files(parser, filenames, dock_area, n_waves)
+                load_files(parser, filenames, dock_area)

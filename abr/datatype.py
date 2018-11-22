@@ -152,8 +152,8 @@ class ABRSeries(object):
                 return waveform
         raise AttributeError(f'{level} dB SPL not in series')
 
-    def guess_p(self):
-        level_guesses = guess_iter(self.waveforms)
+    def guess_p(self, latencies):
+        level_guesses = guess_iter(self.waveforms, latencies)
         self._set_points(level_guesses, Point.PEAK)
 
     def guess_n(self):

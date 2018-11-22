@@ -20,14 +20,13 @@ def main():
     options = parse_args(parser)
 
     app = QtApplication()
-    view = DNDWindow(parser=options['parser'])
+    view = DNDWindow(parser=options['parser'], latencies=options['latencies'])
 
     dock_area = view.find('dock_area')
     parser = options['parser']
     for filename in options['filenames']:
         for model in parser.load(filename):
-            deferred_call(add_dock_item, dock_area, model, filename, parser,
-                          options['n_waves'])
+            deferred_call(add_dock_item, dock_area, model, filename, parser)
 
     view.show()
     app.start()

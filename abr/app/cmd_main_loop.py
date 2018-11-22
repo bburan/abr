@@ -20,12 +20,14 @@ def main():
     add_default_arguments(parser)
     parser.add_argument('dirnames', nargs='*')
     parser.add_argument('--list', action='store_true')
+    parser.add_argument('--skip-errors', action='store_true')
     options = parse_args(parser)
     parser = options['parser']
 
     unprocessed = []
     for dirname in options['dirnames']:
-        unprocessed.extend(parser.find_unprocessed(dirname))
+        files = parser.find_unprocessed(dirname, options['skip_errors'])
+        unprocessed.extend(files)
 
     if options['list']:
         counts = Counter(f for f, _ in unprocessed)
@@ -36,6 +38,7 @@ def main():
     else:
         app = QtApplication()
         presenter = SerialWaveformPresenter(parser=parser,
+                                            latencies=options['latencies'],
                                             unprocessed=unprocessed)
         view = SerialWindow(presenter=presenter)
         view.show()

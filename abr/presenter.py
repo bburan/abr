@@ -95,13 +95,15 @@ class WaveformPresenter(Atom):
     P = Bool(False)
 
     parser = Value()
+    latencies = Dict()
 
     def _default_axes(self):
         axes = self.figure.add_axes([0.1, 0.1, 0.8, 0.8])
         return axes
 
-    def __init__(self, parser):
+    def __init__(self, parser, latencies):
         self.parser = parser
+        self.latencies = latencies
 
     def load(self, model):
         self._current = 0
@@ -174,19 +176,27 @@ class WaveformPresenter(Atom):
 
     def set_suprathreshold(self):
         self.model.threshold = -np.inf
+        if not self.latencies:
+            self.save()
         self.update()
 
     def set_subthreshold(self):
         self.model.threshold = np.inf
         if not self.P:
-            self.guess_p()
+            self.model.guess_p()
+            self.P = True
         if not self.N:
-            self.guess_n()
+            self.model.guess_n()
+            self.N = True
         self.save()
         self.update()
 
     def set_threshold(self):
         self.model.threshold = self.get_current_waveform().level
+        if not self.latencies:
+            self.save()
+        else:
+            self.guess()
         self.update()
 
     def _get_toggle(self):
@@ -207,8 +217,10 @@ class WaveformPresenter(Atom):
         self.update()
 
     def guess(self):
+        if not self.latencies:
+            return
         if not self.P:
-            self.model.guess_p()
+            self.model.guess_p(self.latencies)
             ptype = Point.PEAK
             self.P = True
         elif not self.N:
@@ -244,8 +256,8 @@ class SerialWaveformPresenter(WaveformPresenter):
     unprocessed = List()
     current_model = Int(-1)
 
-    def __init__(self, parser, unprocessed):
-        super().__init__(parser)
+    def __init__(self, parser, latencies, unprocessed):
+        super().__init__(parser, latencies)
         self.unprocessed = unprocessed
         self.load_next()
 

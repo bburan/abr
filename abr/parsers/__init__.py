@@ -133,8 +133,8 @@ class Parser(object):
         with open(filename, 'w') as fh:
             fh.writelines(content)
 
-    def find_unprocessed(self, dirname):
-        return self._module.find_unprocessed(dirname, self)
+    def find_unprocessed(self, dirname, skip_errors=False):
+        return self._module.find_unprocessed(dirname, self, skip_errors)
 
 
 CONTENT = '''
