@@ -56,8 +56,11 @@ def generate_latencies_bound(guess, max_time=8.5, sd=0.25):
         b = (t_ub-t_lb)/sd
         latency[lb] = stats.truncnorm(0, b, t_lb, sd)
 
-    b = (max_time-t_lb)/sd
-    latency[ub] = stats.truncnorm(0, b, t_ub, sd)
+    g = guess.iloc[-1]
+    t = g['x']
+    wave = g.name
+    b = (max_time-t)/sd
+    latency[wave] = stats.truncnorm(0, b, t, sd)
     return latency
 
 

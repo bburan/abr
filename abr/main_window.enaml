@@ -126,29 +126,27 @@ enamldef MPLDockItem(DockItem):
                 deferred_call(bind, figure, presenter)
 
 
-def add_dock_item(dock_area, model, path, parser):
-    from abr.presenter import WaveformPresenter
-    presenter = WaveformPresenter(parser)
+def add_dock_item(dock_area, model, path, presenter):
     items = dock_area.dock_items()
     n_items = len(items)
-
     target = items[-1].name if n_items else ''
     title = '{:.2f} kHz - {}'.format(model.freq, os.path.basename(path))
     item = MPLDockItem(dock_area,
                        name='dock_{}'.format(n_items),
                        title=title,
                        presenter=presenter)
-
     op = InsertTab(item=item.name, target=target)
     dock_area.update_layout(op)
-    presenter.load(model)
 
 
-def load_files(parser, filenames, dock_area):
+def load_files(parser, latencies, filenames, dock_area):
+    from abr.presenter import WaveformPresenter
     for filename in filenames:
         for model in parser.load(filename):
             try:
-                add_dock_item(dock_area, model, filename, parser)
+                presenter = WaveformPresenter(parser, latencies)
+                add_dock_item(dock_area, model, filename, presenter)
+                presenter.load(model)
             except FileNotFoundError:
                 mesg = 'Could not load ABR data from {}'.format(path)
                 critical(None, 'Could not load file', mesg)
@@ -157,6 +155,7 @@ def load_files(parser, filenames, dock_area):
 enamldef DNDWindow(MainWindow):
 
     attr parser
+    attr latencies
 
     initial_size = (600, 900)
 
@@ -178,4 +177,4 @@ enamldef DNDWindow(MainWindow):
                     fragments = urllib.parse.urlsplit(t)
                     path = fragments.path
                     filenames.append(path)
-                load_files(parser, filenames, dock_area)
+                load_files(parser, latencies, filenames, dock_area)
