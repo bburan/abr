@@ -29,12 +29,13 @@ def main():
         files = parser.find_unprocessed(dirname, options['skip_errors'])
         unprocessed.extend(files)
 
-    if options['list']:
+    if len(unprocessed) == 0:
+        print('No files to process')
+    elif options['list']:
         counts = Counter(f for f, _ in unprocessed)
         for filename, n in counts.items():
             filename = os.path.basename(filename)
             print(f'{filename} ({n})')
-
     else:
         app = QtApplication()
         presenter = SerialWaveformPresenter(parser=parser,

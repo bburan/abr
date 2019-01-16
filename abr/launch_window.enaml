@@ -1,0 +1,126 @@
+import subprocess
+
+from atom.api import Atom, Bool, Int, List, Unicode
+
+from enaml.core.api import Looper
+from enaml.layout.api import hbox, vbox
+from enaml.stdlib.fields import IntField
+from enaml.stdlib.message_box import information
+from enaml.widgets.api import (CheckBox, Container, Field, FileDialogEx,
+                               HGroup, Label, MainWindow, PushButton)
+
+
+class Settings(Atom):
+
+    analyzer = Unicode()
+    waves = List()
+    filter_data = Bool(True)
+    filter_lb = Int(300)
+    filter_ub = Int(3000)
+    last_directory = Unicode()
+
+    def get_default_args(self):
+        args = ['--parser', 'PSI']
+        if self.analyzer:
+            args.extend(['--user', self.analyzer])
+        if self.filter_data:
+            args.extend(['--highpass', str(self.filter_lb)])
+            args.extend(['--lowpass', str(self.filter_ub)])
+        else:
+            args.append('--nofilter')
+        args.append('--waves')
+        args.extend(str(w) for w in self.waves)
+        return args
+
+    def launch_basic(self):
+        args = ['abr_gui']
+        args.extend(self.get_default_args())
+        result = subprocess.check_output(args)
+
+    def launch_loop(self):
+        directory = FileDialogEx.get_existing_directory(current_path=self.last_directory)
+        if not directory:
+            return
+        self.last_directory = directory
+        args = ['abr_loop', '--skip-errors']
+        args.append(directory)
+        args.extend(self.get_default_args())
+        print(' '.join(args))
+        result = subprocess.check_output(args)
+        if result.decode().strip() == 'No files to process':
+            mesg = 'No ABR experiments found in {}'.format(directory)
+            information(None, 'No data', mesg)
+
+
+enamldef LaunchWindow(MainWindow):
+
+    title = 'ABR analysis'
+
+    attr settings = Settings(waves=[1])
+
+    Container:
+
+        constraints << [
+            vbox(
+                hbox(a_label, a_field),
+                hbox(m_label, waves),
+                hbox(do_filter, filter_lb, l_filter_to, filter_ub, l_filter_end),
+                hbox(b_basic, b_loop),
+            ),
+            a_label.width == m_label.width,
+            b_basic.width == b_loop.width,
+            m_label.v_center == waves.v_center,
+        ]
+
+        Label: a_label:
+            text = 'Analyzer'
+
+        Field: a_field:
+            text := settings.analyzer
+
+        Label: m_label:
+            text = 'Measure waves'
+            align = 'center'
+
+        HGroup: waves:
+            Looper:
+                iterable << range(1, 6)
+
+                CheckBox:
+                    text = str(loop_item)
+                    checked << loop_item in settings.waves[:]
+                    checked ::
+                        if checked:
+                            settings.waves.append(loop_item)
+                        else:
+                            settings.waves.remove(loop_item)
+
+        CheckBox: do_filter:
+            text = 'Filter?'
+            checked := settings.filter_data
+
+        Label: l_filter_to:
+            text = 'to'
+            visible << do_filter.checked
+
+        Label: l_filter_end:
+            text = 'kHz'
+            visible << do_filter.checked
+
+        IntField: filter_lb:
+            visible << do_filter.checked
+            value := settings.filter_lb
+
+        IntField: filter_ub:
+            visible << do_filter.checked
+            value := settings.filter_ub
+
+        PushButton: b_basic:
+            text = 'Launch basic'
+            clicked ::
+                settings.launch_basic()
+
+        PushButton: b_loop:
+            text = 'Launch auto'
+            clicked ::
+                settings.launch_loop()

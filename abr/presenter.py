@@ -131,6 +131,7 @@ class WaveformPresenter(Atom):
         for p in self.plots:
             p.update()
         if self.axes.figure.canvas is not None:
+            print('drawing')
             self.axes.figure.canvas.draw()
 
     def _get_current(self):
