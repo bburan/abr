@@ -135,6 +135,9 @@ class WaveformPoint(Atom):
     def move(self, step):
         self.index = self.iterator.send(step)
 
+    def time_to_index(self, time):
+        return np.searchsorted(self.parent.x, time)
+
 
 class ABRSeries(object):
 

@@ -92,6 +92,10 @@ def guess(waveforms, latencies, invert=False):
 def peak_iterator(waveform, index, invert=False):
     '''
     Coroutine that steps through the possible guesses for the peak
+
+    Parameters
+    ----------
+    index : tuple of (step_mode, step_size)
     '''
     metrics = find_peaks(waveform, distance=0.25e-3, prominence=25,
                          invert=invert)
@@ -99,13 +103,16 @@ def peak_iterator(waveform, index, invert=False):
     while True:
         step_mode, step_size = yield index
         if step_mode == 'zero_crossing':
-            delta = metrics['index'] - index
-            if step_size == 1:
-                i = delta[delta > 0].idxmin()
-                index = metrics.loc[i, 'index']
-            elif step_size == -1:
-                i = delta[delta < 0].idxmax()
-                index = metrics.loc[i, 'index']
+            try:
+                delta = metrics['index'] - index
+                if step_size == 1:
+                    i = delta[delta > 0].idxmin()
+                    index = metrics.loc[i, 'index']
+                elif step_size == -1:
+                    i = delta[delta < 0].idxmax()
+                    index = metrics.loc[i, 'index']
+            except:
+                pass
         elif step_mode == 'time':
             # Ensure step size is at least one period in length
             step_size = max(abs(step_size), 1/waveform.fs) * np.sign(step_size)

@@ -131,7 +131,6 @@ class WaveformPresenter(Atom):
         for p in self.plots:
             p.update()
         if self.axes.figure.canvas is not None:
-            print('drawing')
             self.axes.figure.canvas.draw()
 
     def _get_current(self):
@@ -244,6 +243,15 @@ class WaveformPresenter(Atom):
         point = self.get_current_point()
         point.move(step)
         self.update()
+
+    def set_selected_point(self, time):
+        try:
+            point = self.get_current_point()
+            index = point.time_to_index(time)
+            point.move(('set', index))
+            self.update()
+        except:
+            pass
 
     def get_current_waveform(self):
         return self.model.waveforms[self.current]
