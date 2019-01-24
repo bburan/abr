@@ -13,27 +13,32 @@ from .datatype import Point
 
 def bind(figure, presenter):
     interactor = Interactor(presenter)
-    figure.canvas.mpl_connect('button_press_event', lambda e: interactor.button_press(e))
-    figure.canvas.mpl_connect('button_release_event', lambda e: interactor.button_release(e))
-    figure.canvas.mpl_connect('motion_notify_event', lambda e: interactor.motion_notify(e))
+    #figure.canvas.mpl_connect('button_press_event', lambda e: interactor.button_press(e))
     figure.canvas.mpl_connect('key_press_event', lambda e: interactor.key_press(e))
+    figure.canvas.mpl_connect('pick_event', lambda e: interactor.pick_event(e))
+    figure.canvas.mpl_connect('motion_notify_event', lambda e: interactor.motion_notify(e))
+    figure.canvas.mpl_connect('button_release_event', lambda e: interactor.button_release(e))
 
 
 class Interactor:
 
     def __init__(self, presenter):
-        self.button_down = False
+        self.selected_point = None
         self.presenter = presenter
 
-    def button_press(self, event):
-        self.button_down = True
-        self.presenter.set_selected_point(event.xdata)
+    def pick_event(self, event):
+        for i, line_plot in enumerate(self.presenter.plots):
+            for point, point_plot in line_plot.points.items():
+                if point_plot.plot == event.artist:
+                    self.selected_point = point
+                    self.presenter.toggle = point
+                    self.presenter.current = i
 
     def button_release(self, event):
-        self.button_down = False
+        self.selected_point = None
 
     def motion_notify(self, event):
-        if self.button_down:
+        if self.selected_point is not None:
             self.presenter.set_selected_point(event.xdata)
 
     def key_press(self, event):

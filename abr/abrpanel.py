@@ -72,7 +72,7 @@ class PointPlot(StylePlot):
         self.parent = parent
         self.point = point
         self.plot, = self.figure.plot(0, 0, transform=parent.transform,
-                                      clip_on=False)
+                                      clip_on=False, picker=10)
         self.current = False
         self.update()
 
