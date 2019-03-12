@@ -66,6 +66,35 @@ def load_analysis(fname):
     return (freq, th, data)
 
 
+def parse_peaks(peaks):
+    # Convert the peaks dataframe to a format that can be used by _set_points.
+    p_pattern = re.compile('P(\d) Latency')
+    n_pattern = re.compile('N(\d) Latency')
+
+    p_latencies = {}
+    n_latencies = {}
+
+    for c in peaks:
+        match = p_pattern.match(c)
+        if match:
+            wave = int(match.group(1))
+            p_latencies[wave] = pd.DataFrame({'x': peaks[c]})
+        match = n_pattern.match(c)
+        if match:
+            wave = int(match.group(1))
+            n_latencies[wave] = pd.DataFrame({'x': peaks[c]})
+
+    p_latencies = pd.concat(p_latencies.values(), keys=p_latencies.keys(),
+                            names=['wave'])
+    p_latencies = {g: df.reset_index('Level', drop=True) \
+                   for g, df in p_latencies.groupby('Level')}
+    n_latencies = pd.concat(n_latencies.values(), keys=n_latencies.keys(),
+                            names=['wave'])
+    n_latencies = {g: df.reset_index('Level', drop=True) \
+                   for g, df in n_latencies.groupby('Level')}
+    return p_latencies, n_latencies
+
+
 class Parser(object):
 
     filename_template = '{filename}-{frequency}kHz-{user}analyzed.txt'
@@ -96,7 +125,11 @@ class Parser(object):
                                                            series.freq)
                 if os.path.exists(analyzed_filename):
                     freq, th, peaks = load_analysis(analyzed_filename)
+                    cols = [p for p in peaks if 'Latency' in p]
                     series.threshold = th
+                    p_latencies, n_latencies = parse_peaks(peaks)
+                    series._set_points(p_latencies, Point.PEAK)
+                    series._set_points(n_latencies, Point.VALLEY)
         return data
 
     def get_save_filename(self, filename, frequency):
