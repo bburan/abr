@@ -66,11 +66,7 @@ def load_analysis(fname):
     return (freq, th, data)
 
 
-def list_analysis(fname):
-    pass
-
-
-def parse_peaks(peaks):
+def parse_peaks(peaks, threshold):
     # Convert the peaks dataframe to a format that can be used by _set_points.
     p_pattern = re.compile('P(\d) Latency')
     n_pattern = re.compile('N(\d) Latency')
@@ -96,6 +92,15 @@ def parse_peaks(peaks):
                             names=['wave'])
     n_latencies = {g: df.reset_index('Level', drop=True) \
                    for g, df in n_latencies.groupby('Level')}
+
+    for level, df in p_latencies.items():
+        if level < threshold:
+            df[:] = -df[:]
+
+    for level, df in n_latencies.items():
+        if level < threshold:
+            df[:] = -df[:]
+
     return p_latencies, n_latencies
 
 
@@ -134,10 +139,9 @@ class Parser(object):
             raise ValueError('Series frequency does not match')
 
         series.threshold = th
-        p_latencies, n_latencies = parse_peaks(peaks)
+        p_latencies, n_latencies = parse_peaks(peaks, th)
         series._set_points(p_latencies, Point.PEAK)
         series._set_points(n_latencies, Point.VALLEY)
-        print(n_latencies)
 
     def get_save_filename_glob(self, filename, frequency):
         frequency = round(frequency, 8)

@@ -175,24 +175,16 @@ class WaveformPresenter(Atom):
         self.update()
 
     def set_suprathreshold(self):
-        self.model.threshold = -np.inf
-        if not self.latencies:
-            self.save()
-        self.update()
+        self.set_threshold(-np.inf)
 
     def set_subthreshold(self):
-        self.model.threshold = np.inf
-        if not self.P:
-            self.model.guess_p()
-            self.P = True
-        if not self.N:
-            self.model.guess_n()
-            self.N = True
-        self.save()
-        self.update()
+        self.set_threshold(np.inf)
 
-    def set_threshold(self):
-        self.model.threshold = self.get_current_waveform().level
+    def set_threshold(self, threshold=None):
+        if threshold is None:
+            self.model.threshold = self.get_current_waveform().level
+        else:
+            self.model.threshold = threshold
         if not self.latencies:
             self.save()
         else:

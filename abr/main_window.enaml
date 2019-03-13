@@ -3,11 +3,13 @@ from pathlib import Path
 import urllib
 
 from enaml.application import deferred_call
-from enaml.layout.api import InsertItem, InsertTab
+from enaml.core.api import Looper
+from enaml.layout.api import hbox, InsertItem, InsertTab, vbox
 from enaml.stdlib.message_box import critical
-from enaml.widgets.api import (CheckBox, DockArea, DockItem, Label, Form, ObjectCombo,
-                               PushButton, Container, MPLCanvas, Feature,
-                               ProgressBar, Label, HGroup, MainWindow, VGroup)
+from enaml.widgets.api import (Action, CheckBox, Container, DockArea, DockItem,
+                               Label, Feature, Form, HGroup, MainWindow, Menu,
+                               MPLCanvas, ObjectCombo, ProgressBar, PushButton,
+                               ToolButton, VGroup)
 
 from .datatype import Point
 
@@ -140,16 +142,30 @@ enamldef MPLDockItem(DockItem):
 
     Container:
 
-        Form:
-            Label:
-                text = 'Analyzed files'
+        constraints = [vbox(hbox(supra, sub, load), canvas),
+                       supra.width == sub.width,
+                       load.width == 200]
 
-            ObjectCombo:
-                items << analyzed_filenames
-                selected = None
-                selected::
-                    presenter.load_analysis(selected)
-                to_string = lambda p: Path(p).stem
+        ToolButton: load:
+            text = 'Load analysis'
+            popup_mode = 'instant'
+            Menu:
+                Looper:
+                    iterable << analyzed_filenames[:]
+                    Action:
+                        text << Path(loop_item).stem
+                        triggered ::
+                            presenter.load_analysis(loop_item)
+
+        PushButton: supra:
+            text = 'All above threshold'
+            clicked ::
+                presenter.set_suprathreshold()
+
+        PushButton: sub:
+            text = 'All below threshold'
+            clicked ::
+                presenter.set_subthreshold()
 
         MPLCanvas: canvas:
             figure << presenter.figure
