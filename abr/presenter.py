@@ -206,12 +206,12 @@ class WaveformPresenter(Atom):
         if value == self._toggle:
             return
         for plot in self.plots:
-            point = plot.points.get(self.toggle)
+            point = plot.point_plots.get(self.toggle)
             if point is not None:
                 point.current = False
         self._toggle = value
         for plot in self.plots:
-            point = plot.points.get(value)
+            point = plot.point_plots.get(value)
             if point is not None:
                 point.current = True
         self.update()
@@ -258,6 +258,11 @@ class WaveformPresenter(Atom):
 
     def get_current_point(self):
         return self.get_current_waveform().points[self.toggle]
+
+    def load_analysis(self, filename):
+        self.model.clear_points()
+        self.parser.load_analysis(self.model, filename)
+        self.update()
 
 
 class SerialWaveformPresenter(WaveformPresenter):

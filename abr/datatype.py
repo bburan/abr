@@ -69,6 +69,9 @@ class ABRWaveform:
             self.points[wave, ptype] = point
         self.points[wave, ptype].index = int(index)
 
+    def clear_points(self):
+        self.points = {}
+
     def _set_points(self, guesses, ptype):
         for wave, wave_guess in guesses.iterrows():
             index = wave_guess.get('index', np.nan)
@@ -179,6 +182,10 @@ class ABRSeries(object):
         waveforms = self.waveforms[:i]
         level_guesses = guess_iter(waveforms, latencies, invert=p.is_valley())
         self._set_points(level_guesses, p.point_type)
+
+    def clear_points(self):
+        for waveform in self.waveforms:
+            waveform.clear_points()
 
     def _set_points(self, level_guesses, ptype):
         for level, level_guess in level_guesses.items():
