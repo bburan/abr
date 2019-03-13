@@ -19,11 +19,11 @@ The save function must return a message.  If there is an error in saving, throw
 the appropriate exception.
 '''
 
+import importlib
 import re
+from glob import glob
 import os
 import time
-
-import importlib
 
 import pandas as pd
 import numpy as np
@@ -64,6 +64,10 @@ def load_analysis(fname):
                 break
         data = pd.io.parsers.read_csv(fh, sep='\t', index_col='Level')
     return (freq, th, data)
+
+
+def list_analysis(fname):
+    pass
 
 
 def parse_peaks(peaks):
@@ -117,20 +121,28 @@ class Parser(object):
         self._module_name = f'abr.parsers.{file_format}'
         self._module = importlib.import_module(self._module_name)
 
-    def load(self, filename, frequencies=None, include_analysis=True):
-        data = self._module.load(filename, self._filter_settings, frequencies)
-        if include_analysis:
-            for series in data:
-                analyzed_filename = self.get_save_filename(series.filename,
-                                                           series.freq)
-                if os.path.exists(analyzed_filename):
-                    freq, th, peaks = load_analysis(analyzed_filename)
-                    cols = [p for p in peaks if 'Latency' in p]
-                    series.threshold = th
-                    p_latencies, n_latencies = parse_peaks(peaks)
-                    series._set_points(p_latencies, Point.PEAK)
-                    series._set_points(n_latencies, Point.VALLEY)
-        return data
+    def load(self, filename, frequencies=None):
+        return self._module.load(filename, self._filter_settings, frequencies)
+
+    def get_analyzed_filenames(self, filename, frequency):
+        search_pattern = self.get_save_filename_glob(filename, frequency)
+        return glob(search_pattern)
+
+    def load_analysis(self, series, filename):
+        freq, th, peaks = load_analysis(filename)
+        if series.freq != freq:
+            raise ValueError('Series frequency does not match')
+
+        series.threshold = th
+        p_latencies, n_latencies = parse_peaks(peaks)
+        series._set_points(p_latencies, Point.PEAK)
+        series._set_points(n_latencies, Point.VALLEY)
+        print(n_latencies)
+
+    def get_save_filename_glob(self, filename, frequency):
+        frequency = round(frequency, 8)
+        return self.filename_template.format(filename=filename,
+                                             frequency=frequency, user='*')
 
     def get_save_filename(self, filename, frequency):
         # Round frequency to nearest 8 places to minimize floating-point

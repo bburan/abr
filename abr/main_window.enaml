@@ -1,12 +1,13 @@
 import os.path
+from pathlib import Path
 import urllib
 
 from enaml.application import deferred_call
 from enaml.layout.api import InsertItem, InsertTab
 from enaml.stdlib.message_box import critical
-from enaml.widgets.api import (CheckBox, DockArea, DockItem, PushButton,
-                               Container, MPLCanvas, Feature, ProgressBar,
-                               Label, HGroup, MainWindow, VGroup)
+from enaml.widgets.api import (CheckBox, DockArea, DockItem, Label, Form, ObjectCombo,
+                               PushButton, Container, MPLCanvas, Feature,
+                               ProgressBar, Label, HGroup, MainWindow, VGroup)
 
 from .datatype import Point
 
@@ -117,8 +118,21 @@ enamldef SerialWindow(MainWindow):
 enamldef MPLDockItem(DockItem):
 
     attr presenter
+    attr analyzed_filenames = []
 
     Container:
+
+        Form:
+            Label:
+                text = 'Analyzed files'
+
+            ObjectCombo:
+                items << analyzed_filenames
+                selected = None
+                selected::
+                    presenter.load_analysis(selected)
+                to_string = lambda p: Path(p).stem
+
         MPLCanvas: canvas:
             figure << presenter.figure
             toolbar_visible = False
@@ -126,7 +140,7 @@ enamldef MPLDockItem(DockItem):
                 deferred_call(bind, figure, presenter)
 
 
-def add_dock_item(dock_area, model, path, presenter):
+def add_dock_item(dock_area, model, path, presenter, analyzed_filenames):
     items = dock_area.dock_items()
     n_items = len(items)
     target = items[-1].name if n_items else ''
@@ -134,7 +148,8 @@ def add_dock_item(dock_area, model, path, presenter):
     item = MPLDockItem(dock_area,
                        name='dock_{}'.format(n_items),
                        title=title,
-                       presenter=presenter)
+                       presenter=presenter,
+                       analyzed_filenames=analyzed_filenames)
     op = InsertTab(item=item.name, target=target)
     dock_area.update_layout(op)
 
@@ -144,8 +159,11 @@ def load_files(parser, latencies, filenames, dock_area):
     for filename in filenames:
         for model in parser.load(filename):
             try:
+                analyzed_filenames = \
+                    parser.get_analyzed_filenames(model.filename, model.freq)
                 presenter = WaveformPresenter(parser, latencies)
-                add_dock_item(dock_area, model, filename, presenter)
+                add_dock_item(dock_area, model, filename, presenter,
+                              analyzed_filenames)
                 presenter.load(model)
             except FileNotFoundError:
                 mesg = 'Could not load ABR data from {}'.format(path)

@@ -96,6 +96,9 @@ class PointPlot(StylePlot):
     def update_plot(self):
         self.plot.set_data(self.point.x, self.point.y)
 
+    def remove(self):
+        self.plot.remove()
+
 
 class WaveformPlot(StylePlot):
 
@@ -128,7 +131,7 @@ class WaveformPlot(StylePlot):
         self.axis = axis
         self.waveform = waveform
         self.current = False
-        self.points = {}
+        self.point_plots = {}
         self.transform = transform
 
         # Create the plot
@@ -149,9 +152,19 @@ class WaveformPlot(StylePlot):
 
     def update(self):
         # Check to see if new points were added (e.g. valleys)
-        for point, data in self.waveform.points.items():
-            if point not in self.points:
-                self.points[point] = PointPlot(self, self.axis, data)
-        for p in self.points.values():
+        for key, point in self.waveform.points.items():
+            if key not in self.point_plots:
+                self.point_plots[key] = PointPlot(self, self.axis, point)
+
+        for key, point_plot in list(self.point_plots.items()):
+            point = self.waveform.points.get(key)
+            if point is None:
+                point_plot.remove()
+                del self.point_plots[key]
+            elif point != point_plot.point:
+                point_plot.point = self.waveform.points[key]
+
+        for p in self.point_plots.values():
             p.update()
+
         super().update()
