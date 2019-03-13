@@ -29,7 +29,7 @@ class Interactor:
 
     def pick_event(self, event):
         for i, line_plot in enumerate(self.presenter.plots):
-            for point, point_plot in line_plot.points.items():
+            for point, point_plot in line_plot.point_plots.items():
                 if point_plot.plot == event.artist:
                     self.selected_point = point
                     self.presenter.toggle = point
