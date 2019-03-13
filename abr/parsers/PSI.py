@@ -1,5 +1,6 @@
-import os.path
 import glob
+import os.path
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -12,19 +13,24 @@ nofilter_template = base_template.format(' ')
 filter_template = base_template.format(' with {:.0f}Hz to {:.0f}Hz filter ')
 
 
-def get_filename(base_directory, filter_settings):
+def get_filename(pathname, filter_settings):
     if filter_settings is not None:
         filename = filter_template.format(
             filter_settings['highpass'],
             filter_settings['lowpass'])
     else:
         filename = nofilter_template
-    return os.path.join(base_directory, filename)
+
+    if pathname.name == filename:
+        return pathname
+    else:
+        return pathname / filename
 
 
 def load(base_directory, filter_settings=None, frequencies=None):
-
     filename = get_filename(base_directory, filter_settings)
+    if frequencies is not None and np.isscalar(frequencies):
+        frequencies = [frequencies]
 
     data = pd.io.parsers.read_csv(filename, header=[0, 1], index_col=0).T
     fs = np.mean(np.diff(data.columns.values)**-1)
@@ -36,7 +42,7 @@ def load(base_directory, filter_settings=None, frequencies=None):
         if frequencies is not None:
             if frequency not in frequencies:
                 continue
-        frequency = float(frequency)*1e-3
+        frequency = float(frequency)
         level = float(level)
         stack = waveforms.setdefault(frequency, [])
         waveform = ABRWaveform(fs, w, level)
@@ -45,36 +51,23 @@ def load(base_directory, filter_settings=None, frequencies=None):
     series = []
     for frequency, stack in waveforms.items():
         s = ABRSeries(stack, frequency)
-        s.filename = filename[:-4]
+        s.filename = filename
         series.append(s)
 
     return series
 
 
-def is_processed(base_directory, frequency, parser):
-    filename = get_filename(base_directory, parser._filter_settings)[:-4]
-    save_filename = parser.get_save_filename(filename, frequency)
-    return os.path.exists(save_filename)
-
-
-def get_frequencies(base_directory, filter_settings):
-    filename = get_filename(base_directory, filter_settings)
+def get_frequencies(filename, filter_settings):
     data = pd.io.parsers.read_csv(filename, header=[0, 1], index_col=0).T
     frequencies = np.unique(data.index.get_level_values('frequency'))
     return frequencies.astype('float')
 
 
-def find_unprocessed(dirname, parser, skip_errors=False):
-    wildcard = os.path.join(dirname, '*abr*')
-    unprocessed = []
-    for base_directory in glob.glob(wildcard):
-        try:
-            frequencies = get_frequencies(base_directory,
-                                          parser._filter_settings)
-            for frequency in frequencies:
-                if not is_processed(base_directory, frequency*1e-3, parser):
-                    unprocessed.append((base_directory, frequency))
-        except FileNotFoundError:
-            if not skip_errors:
-                raise
-    return unprocessed
+def find_all(dirname, filter_settings):
+    results = []
+    for pathname in Path(dirname).glob('*abr*'):
+        if pathname.is_dir() :
+            filename = get_filename(pathname, filter_settings)
+            for frequency in get_frequencies(filename, filter_settings):
+                results.append((filename, frequency))
+    return results

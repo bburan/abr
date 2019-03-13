@@ -23,12 +23,19 @@ import importlib
 import re
 from glob import glob
 import os
+from pathlib import Path
 import time
 
 import pandas as pd
 import numpy as np
 
 from ..datatype import Point
+
+P_ANALYZER = re.compile('.*kHz(?:-(\w+))?-analyzed.txt')
+
+
+def get_analyzer(filename):
+    return P_ANALYZER.match(filename.name).group(1)
 
 
 def waveform_string(waveform):
@@ -129,13 +136,9 @@ class Parser(object):
     def load(self, filename, frequencies=None):
         return self._module.load(filename, self._filter_settings, frequencies)
 
-    def get_analyzed_filenames(self, filename, frequency):
-        search_pattern = self.get_save_filename_glob(filename, frequency)
-        return glob(search_pattern)
-
     def load_analysis(self, series, filename):
         freq, th, peaks = load_analysis(filename)
-        if series.freq != freq:
+        if series.freq != (freq * 1e3):
             raise ValueError('Series frequency does not match')
 
         series.threshold = th
@@ -143,19 +146,25 @@ class Parser(object):
         series._set_points(p_latencies, Point.PEAK)
         series._set_points(n_latencies, Point.VALLEY)
 
-    def get_save_filename_glob(self, filename, frequency):
-        frequency = round(frequency, 8)
-        return self.filename_template.format(filename=filename,
-                                             frequency=frequency, user='*')
+    def find_analyzed_files(self, filename, frequency):
+        frequency = round(frequency * 1e-3, 8)
+        glob_pattern = self.filename_template.format(
+            filename=filename.with_suffix(''),
+            frequency=frequency,
+            user='*')
+        path = Path(glob_pattern)
+        return list(path.parent.glob(path.name))
 
     def get_save_filename(self, filename, frequency):
         # Round frequency to nearest 8 places to minimize floating-point
         # errors.
         user_name = self._user + '-' if self._user else ''
-        frequency = round(frequency, 8)
-        return self.filename_template.format(filename=filename,
-                                             frequency=frequency,
-                                             user=user_name)
+        frequency = round(frequency * 1e-3, 8)
+        save_filename = self.filename_template.format(
+            filename=filename.with_suffix(''),
+            frequency=frequency,
+            user=user_name)
+        return Path(save_filename)
 
     def save(self, model):
         # Assume that all waveforms were filtered identically
@@ -182,8 +191,37 @@ class Parser(object):
         with open(filename, 'w') as fh:
             fh.writelines(content)
 
-    def find_unprocessed(self, dirname, skip_errors=False):
-        return self._module.find_unprocessed(dirname, self, skip_errors)
+    def find_all(self, dirname):
+        return self._module.find_all(dirname, self._filter_settings)
+
+    def find_processed(self, dirname):
+        return [(p, f) for p, f in self.find_all(dirname) \
+                if self.get_save_filename(p, f).exists()]
+
+    def find_unprocessed(self, dirname):
+        return [(p, f) for p, f in self.find_all(dirname) \
+                if not self.get_save_filename(p, f).exists()]
+
+    def find_analyses(self, dirname):
+        analyzed = {}
+        for p, f in self.find_all(dirname):
+            analyzed[p, f] = self.find_analyzed_files(p, f)
+        return analyzed
+
+    def load_analyses(self, dirname):
+        analyzed = self.find_analyses(dirname)
+        keys = []
+        thresholds = []
+        for (raw_file, frequency), analyzed_files in analyzed.items():
+            for analyzed_file in analyzed_files:
+                user = get_analyzer(analyzed_file)
+                keys.append((raw_file, frequency, analyzed_file, user))
+                _, threshold, _ = load_analysis(analyzed_file)
+                thresholds.append(threshold)
+
+        cols = ['raw_file', 'frequency', 'analyzed_file', 'user']
+        index = pd.MultiIndex.from_tuples(keys, names=cols)
+        return pd.Series(thresholds, index=index)
 
 
 CONTENT = '''

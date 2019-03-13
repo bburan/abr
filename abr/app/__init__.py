@@ -12,7 +12,7 @@ P_LATENCIES = {
 }
 
 
-def add_default_arguments(parser):
+def add_default_arguments(parser, waves=True):
     parser.add_argument('--nofilter', action='store_false', dest='filter',
                         default=True, help='Do not filter waveform')
     parser.add_argument('--lowpass',
@@ -24,14 +24,16 @@ def add_default_arguments(parser):
     parser.add_argument('--order',
                         help='Filter order, default 1st order', default=1,
                         type=int)
-    parser.add_argument('--user', help='Name of person analyzing data')
     parser.add_argument('--parser', default='HDF5', help='Parser to use')
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--threshold-only', action='store_true')
-    group.add_argument('--all-waves', action='store_true')
-    group.add_argument('--waves', type=int, nargs='+')
+    parser.add_argument('--user', help='Name of person analyzing data')
 
-def parse_args(parser):
+    if waves:
+        group = parser.add_mutually_exclusive_group(required=True)
+        group.add_argument('--threshold-only', action='store_true')
+        group.add_argument('--all-waves', action='store_true')
+        group.add_argument('--waves', type=int, nargs='+')
+
+def parse_args(parser, waves=True):
     options = parser.parse_args()
     exclude = ('filter', 'lowpass', 'highpass', 'order', 'parser', 'user',
                'waves', 'all_waves', 'threshold_only')
@@ -45,6 +47,9 @@ def parse_args(parser):
         }
     new_options['parser'] = Parser(options.parser, filter_settings,
                                    options.user)
+
+    if not waves:
+        return new_options
 
     if options.all_waves:
         waves = [1, 2, 3, 4, 5]

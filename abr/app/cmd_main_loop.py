@@ -26,7 +26,7 @@ def main():
 
     unprocessed = []
     for dirname in options['dirnames']:
-        files = parser.find_unprocessed(dirname, options['skip_errors'])
+        files = parser.find_unprocessed(dirname)
         unprocessed.extend(files)
 
     if len(unprocessed) == 0:

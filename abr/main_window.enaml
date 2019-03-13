@@ -5,6 +5,8 @@ import urllib
 from enaml.application import deferred_call
 from enaml.core.api import Looper
 from enaml.layout.api import hbox, InsertItem, InsertTab, vbox
+from enaml.stdlib.dialog_buttons import DialogButton
+from enaml.stdlib.message_box import warning
 from enaml.stdlib.message_box import critical
 from enaml.widgets.api import (Action, CheckBox, Container, DockArea, DockItem,
                                Label, Feature, Form, HGroup, MainWindow, Menu,
@@ -135,27 +137,48 @@ enamldef SerialWindow(MainWindow):
                 deferred_call(bind, figure, presenter)
 
 
-enamldef MPLDockItem(DockItem):
+enamldef MPLDockItem(DockItem): di:
 
     attr presenter
     attr analyzed_filenames = []
 
     Container:
-
-        constraints = [vbox(hbox(supra, sub, load), canvas),
-                       supra.width == sub.width,
-                       load.width == 200]
+        constraints = [
+            vbox(
+                hbox(show_filename, supra, sub, load),
+                filename,
+                canvas
+            ),
+            supra.width == sub.width,
+            load.width == 200
+        ]
 
         ToolButton: load:
             text = 'Load analysis'
             popup_mode = 'instant'
             Menu:
-                Looper:
+                Looper: looper:
                     iterable << analyzed_filenames[:]
-                    Action:
-                        text << Path(loop_item).stem
-                        triggered ::
-                            presenter.load_analysis(loop_item)
+                    Menu:
+                        title << loop_item.stem
+                        Action:
+                            text = 'Plot'
+                            triggered ::
+                                presenter.load_analysis(loop_item)
+                        Action:
+                            text = 'Delete'
+                            triggered ::
+                                mesg = 'Are you sure you want to remove this file?'
+                                buttons = [
+                                    DialogButton('Yes', 'accept'),
+                                    DialogButton('No', 'reject'),
+                                ]
+                                result = warning(None, 'Delete', mesg, buttons)
+                                if result.text == 'Yes':
+                                    loop_item.unlink()
+                                    items = di.analyzed_filenames[:]
+                                    items.remove(loop_item)
+                                    di.analyzed_filenames = items
 
         PushButton: supra:
             text = 'All above threshold'
@@ -166,6 +189,14 @@ enamldef MPLDockItem(DockItem):
             text = 'All below threshold'
             clicked ::
                 presenter.set_subthreshold()
+
+        CheckBox: show_filename:
+            checked = False
+            text = 'Show filename'
+
+        Label: filename:
+            visible << show_filename.checked
+            text << str(getattr(presenter.model, 'filename', ''))
 
         MPLCanvas: canvas:
             figure << presenter.figure
@@ -190,11 +221,13 @@ def add_dock_item(dock_area, model, path, presenter, analyzed_filenames):
 
 def load_files(parser, latencies, filenames, dock_area):
     from abr.presenter import WaveformPresenter
-    for filename in filenames:
-        for model in parser.load(filename):
+    for filename, frequencies in filenames:
+        for model in parser.load(filename, frequencies):
             try:
                 analyzed_filenames = \
-                    parser.get_analyzed_filenames(model.filename, model.freq)
+                    parser.find_analyzed_files(model.filename, model.freq)
+                print(model.filename)
+                print(analyzed_filenames)
                 presenter = WaveformPresenter(parser, latencies)
                 add_dock_item(dock_area, model, filename, presenter,
                               analyzed_filenames)
@@ -230,3 +263,75 @@ enamldef DNDWindow(MainWindow):
                     path = urllib.request.url2pathname(fragments.path)
                     filenames.append(path)
                 load_files(parser, latencies, filenames, dock_area)
+
+
+def mpl_connect(figure, event, handler):
+    figure.canvas.mpl_connect(event, handler)
+
+
+enamldef CompareWindow(MainWindow):
+
+    attr compare
+    attr parser
+
+    initial_size = (1000, 600)
+
+    initialized ::
+        compare.observe('selected', selected_changed)
+
+    func selected_changed(event):
+        load_files(parser, {}, event['value'], dock_area)
+
+    Container:
+
+        constraints = [
+            hbox(
+                vbox(
+                    hbox(x_label, x_select),
+                    hbox(y_label, y_select),
+                    hbox(d_label, d_checkbox),
+                    hbox(j_label, j_checkbox),
+                    canvas,
+                ),
+                dock_area
+            ),
+            x_label.width == y_label.width,
+            x_label.width == d_label.width,
+            x_label.width == j_label.width,
+            x_select.width == y_select.width
+        ]
+
+        Label: x_label:
+            text = 'X'
+
+        ObjectCombo: x_select:
+            items << list(compare.data.columns)
+            selected := compare.x_column
+
+        Label: y_label:
+            text = 'Y'
+
+        ObjectCombo: y_select:
+            items << list(compare.data.columns)
+            selected := compare.y_column
+
+        Label: d_label:
+            text = 'Plot as difference'
+
+        CheckBox: d_checkbox:
+            checked := compare.as_difference
+
+        Label: j_label:
+            text = 'Jitter data'
+
+        CheckBox: j_checkbox:
+            checked := compare.jitter
+
+        MPLCanvas: canvas:
+            figure << compare.figure
+            initialized ::
+                deferred_call(mpl_connect, compare.figure, 'pick_event',
+                              compare.pick_handler)
+
+        DockArea: dock_area:
+            name = 'dock_area'
