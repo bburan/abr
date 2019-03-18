@@ -91,8 +91,10 @@ class WaveformPresenter(Atom):
     _current = Int()
     _toggle = Value()
     plots = List()
-    N = Bool(False)
-    P = Bool(False)
+
+    threshold_marked = Bool(False)
+    peaks_marked = Bool(False)
+    valleys_marked = Bool(False)
 
     parser = Value()
     latencies = Dict()
@@ -111,9 +113,11 @@ class WaveformPresenter(Atom):
         self.axes.set_xlabel('Time (msec)')
         self.model = model
         self.plots, self.boxes = plot_model(self.axes, self.model)
+
         self.normalized = False
-        self.N = False
-        self.P = False
+        self.threshold_marked = False
+        self.peaks_marked = False
+        self.valleys_marked = False
 
         # Set current before toggle. Ordering is important.
         self.current = len(self.model.waveforms)-1
@@ -121,9 +125,9 @@ class WaveformPresenter(Atom):
         self.update()
 
     def save(self):
-        if  np.isnan(self.model.threshold):
+        if np.isnan(self.model.threshold):
             raise ValueError('Threshold not set')
-        if not self.P or not self.N:
+        if not self.peaks_marked or not self.valleys_marked:
             raise ValueError('Waves not identified')
         self.parser.save(self.model)
 
@@ -170,8 +174,7 @@ class WaveformPresenter(Atom):
             for box in self.boxes['tnorm']:
                 points = np.array([[0, -1], [1, 1]])
                 box.set_points(points)
-        label = 'normalized' if value else 'raw'
-        self.axes.set_title(label)
+        self.axes.set_title('normalized' if value else 'raw')
         self.update()
 
     def set_suprathreshold(self):
@@ -182,12 +185,13 @@ class WaveformPresenter(Atom):
 
     def set_threshold(self, threshold=None):
         if threshold is None:
-            self.model.threshold = self.get_current_waveform().level
-        else:
-            self.model.threshold = threshold
+            threshold = self.get_current_waveform().level
+
+        self.model.threshold = threshold
+        self.threshold_marked = True
         if not self.latencies:
             self.save()
-        else:
+        elif not self.peaks_marked:
             self.guess()
         self.update()
 
@@ -211,14 +215,14 @@ class WaveformPresenter(Atom):
     def guess(self):
         if not self.latencies:
             return
-        if not self.P:
+        if not self.peaks_marked:
             self.model.guess_p(self.latencies)
             ptype = Point.PEAK
-            self.P = True
-        elif not self.N:
+            self.peaks_marked = True
+        elif not self.valleys_marked:
             self.model.guess_n()
             ptype = Point.VALLEY
-            self.N = True
+            self.valleys_marked = True
         else:
             return
         self.update()
@@ -251,8 +255,24 @@ class WaveformPresenter(Atom):
     def get_current_point(self):
         return self.get_current_waveform().points[self.toggle]
 
-    def load_analysis(self, filename):
+    def clear_points(self):
         self.model.clear_points()
+        self.peaks_marked = False
+        self.valleys_marked = False
+        self.update()
+
+    def clear_peaks(self):
+        self.model.clear_peaks()
+        self.peaks_marked = False
+        self.update()
+
+    def clear_valleys(self):
+        self.model.clear_valleys()
+        self.valleys_marked = False
+        self.update()
+
+    def load_analysis(self, filename):
+        self.clear_points()
         self.parser.load_analysis(self.model, filename)
         self.update()
 

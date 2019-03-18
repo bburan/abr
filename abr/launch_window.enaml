@@ -1,13 +1,16 @@
 import subprocess
 
-from atom.api import Atom, Bool, Int, List, Unicode
+from atom.api import Atom, Bool, Enum, Int, List, Unicode
 
 from enaml.core.api import Looper
 from enaml.layout.api import hbox, vbox
 from enaml.stdlib.fields import IntField
 from enaml.stdlib.message_box import information
 from enaml.widgets.api import (CheckBox, Container, Field, FileDialogEx,
-                               HGroup, Label, MainWindow, PushButton)
+                               HGroup, Label, MainWindow, ObjectCombo,
+                               PushButton)
+
+from abr.parsers import PARSER_MAP
 
 
 class Settings(Atom):
@@ -18,9 +21,10 @@ class Settings(Atom):
     filter_lb = Int(300)
     filter_ub = Int(3000)
     last_directory = Unicode()
+    parser = Enum(*list(PARSER_MAP.keys()))
 
     def get_default_args(self):
-        args = ['--parser', 'PSI']
+        args = ['--parser', self.parser]
         if self.analyzer:
             args.extend(['--user', self.analyzer])
         if self.filter_data:
@@ -63,11 +67,14 @@ enamldef LaunchWindow(MainWindow):
         constraints << [
             vbox(
                 hbox(a_label, a_field),
+                hbox(p_label, p_field),
                 hbox(m_label, waves),
                 hbox(do_filter, filter_lb, l_filter_to, filter_ub, l_filter_end),
                 hbox(b_basic, b_loop),
             ),
             a_label.width == m_label.width,
+            a_label.width == p_label.width,
+            a_label.width == do_filter.width,
             b_basic.width == b_loop.width,
             m_label.v_center == waves.v_center,
         ]
@@ -81,6 +88,14 @@ enamldef LaunchWindow(MainWindow):
         Label: m_label:
             text = 'Measure waves'
             align = 'center'
+
+        Label: p_label:
+            text = 'File format'
+
+        ObjectCombo: p_field:
+            items << list(PARSER_MAP.keys())
+            selected := settings.parser
+            to_string << PARSER_MAP.get
 
         HGroup: waves:
             Looper:

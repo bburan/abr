@@ -4,25 +4,25 @@ import urllib
 
 from enaml.application import deferred_call
 from enaml.core.api import Looper
-from enaml.layout.api import hbox, InsertItem, InsertTab, vbox
+from enaml.layout.api import hbox, InsertItem, InsertTab, spacer, vbox
 from enaml.stdlib.dialog_buttons import DialogButton
 from enaml.stdlib.message_box import warning
 from enaml.stdlib.message_box import critical
-from enaml.widgets.api import (Action, CheckBox, Container, DockArea, DockItem,
-                               Label, Feature, Form, HGroup, MainWindow, Menu,
-                               MPLCanvas, ObjectCombo, ProgressBar, PushButton,
+from enaml.widgets.api import (Action, ActionGroup, CheckBox, Container,
+                               DockArea, DockItem, Label, Feature, Form,
+                               HGroup, MainWindow, Menu, MPLCanvas,
+                               ObjectCombo, ProgressBar, PushButton,
                                ToolButton, VGroup)
 
 from .datatype import Point
 
 
 def bind(figure, presenter):
-    interactor = Interactor(presenter)
-    #figure.canvas.mpl_connect('button_press_event', lambda e: interactor.button_press(e))
-    figure.canvas.mpl_connect('key_press_event', lambda e: interactor.key_press(e))
-    figure.canvas.mpl_connect('pick_event', lambda e: interactor.pick_event(e))
-    figure.canvas.mpl_connect('motion_notify_event', lambda e: interactor.motion_notify(e))
-    figure.canvas.mpl_connect('button_release_event', lambda e: interactor.button_release(e))
+    i = Interactor(presenter)
+    figure.canvas.mpl_connect('key_press_event', lambda e: i.key_press(e))
+    figure.canvas.mpl_connect('pick_event', lambda e: i.pick_event(e))
+    figure.canvas.mpl_connect('motion_notify_event', lambda e: i.motion_notify(e))
+    figure.canvas.mpl_connect('button_release_event', lambda e: i.button_release(e))
 
 
 class Interactor:
@@ -33,11 +33,16 @@ class Interactor:
 
     def pick_event(self, event):
         for i, line_plot in enumerate(self.presenter.plots):
+            if line_plot.plot == event.artist:
+                self.presenter.current = i
+                if not self.presenter.threshold_marked:
+                    self.presenter.set_threshold()
             for point, point_plot in line_plot.point_plots.items():
                 if point_plot.plot == event.artist:
                     self.selected_point = point
                     self.presenter.toggle = point
                     self.presenter.current = i
+                    return
 
     def button_release(self, event):
         self.selected_point = None
@@ -98,111 +103,139 @@ def get_title(frequency, filename, show_filename):
         return '{} kHz'.format(frequency)
 
 
-enamldef SerialWindow(MainWindow):
-
-    attr presenter
-    initial_size = (600, 900)
-    title << get_title(presenter.model.freq, presenter.model.filename,
-                       show_filename.checked)
-
-    Container:
-
-        HGroup:
-            VGroup:
-                Label:
-                    text = 'Progress (n={})'.format(len(presenter.unprocessed))
-                ProgressBar:
-                    value << presenter.current_model
-                    maximum << len(presenter.unprocessed)
-                    text_visible = True
-            VGroup:
-                PushButton:
-                    text = 'All above threshold'
-                    clicked ::
-                        presenter.set_suprathreshold()
-                PushButton:
-                    text = 'All below threshold'
-                    clicked ::
-                        presenter.set_subthreshold()
-
-            VGroup:
-                CheckBox: show_filename:
-                    checked = False
-                    text = 'Show filename'
-
-        MPLCanvas: canvas:
-            figure << presenter.figure
-            toolbar_visible = False
-            initialized ::
-                deferred_call(bind, figure, presenter)
-
-
-enamldef MPLDockItem(DockItem): di:
+enamldef MPLContainer(Container): di:
 
     attr presenter
     attr analyzed_filenames = []
 
+    constraints = [
+        vbox(
+            hbox(show_filename, supra, sub, load, spacer),
+            hbox(guess, clear, spacer),
+            filename,
+            canvas
+        ),
+        supra.width == sub.width,
+        load.width == 200,
+    ]
+
+    ToolButton: load:
+        text = 'Load analysis'
+        popup_mode = 'instant'
+        Menu:
+            Looper: looper:
+                iterable << analyzed_filenames[:]
+                Menu:
+                    title << loop_item.stem
+                    Action:
+                        text = 'Plot'
+                        triggered ::
+                            presenter.load_analysis(loop_item)
+                    Action:
+                        text = 'Delete'
+                        triggered ::
+                            mesg = 'Are you sure you want to remove this file?'
+                            buttons = [
+                                DialogButton('Yes', 'accept'),
+                                DialogButton('No', 'reject'),
+                            ]
+                            result = warning(None, 'Delete', mesg, buttons)
+                            if result.text == 'Yes':
+                                loop_item.unlink()
+                                items = di.analyzed_filenames[:]
+                                items.remove(loop_item)
+                                di.analyzed_filenames = items
+
+    ToolButton: guess:
+        text = 'Guess'
+        popup_mode = 'instant'
+        Menu:
+            Action:
+                text = 'Peaks'
+                triggered ::
+                    presenter.guess_peaks()
+            Action:
+                text = 'Valleys'
+                triggered ::
+                    presenter.guess_valleys()
+
+    ToolButton: clear:
+        text = 'Clear'
+        popup_mode = 'instant'
+        Menu:
+            Action:
+                text = 'All'
+                triggered ::
+                    presenter.clear_points()
+            Action:
+                text = 'Peaks'
+                triggered::
+                    presenter.clear_peaks()
+            Action:
+                text = 'Valleys'
+                triggered ::
+                    presenter.clear_valleys()
+
+
+    PushButton: supra:
+        text = 'All above threshold'
+        clicked ::
+            presenter.set_suprathreshold()
+
+    PushButton: sub:
+        text = 'All below threshold'
+        clicked ::
+            presenter.set_subthreshold()
+
+    CheckBox: show_filename:
+        checked = False
+        text = 'Show info'
+
+    Label: filename:
+        visible << show_filename.checked
+        text << '{} {} Hz'.format(getattr(presenter.model, 'id', ''), 
+                                  getattr(presenter.model, 'freq', ''))
+
+    MPLCanvas: canvas:
+        figure << presenter.figure
+        toolbar_visible = False
+        initialized ::
+            deferred_call(bind, figure, presenter)
+
+
+enamldef SerialWindow(MainWindow):
+
+    alias presenter: container.presenter
+
+    initial_size = (600, 900)
+    title = 'ABR loop'
+
     Container:
         constraints = [
             vbox(
-                hbox(show_filename, supra, sub, load),
-                filename,
-                canvas
-            ),
-            supra.width == sub.width,
-            load.width == 200
+                hbox(label, progress),
+                container
+            )
         ]
 
-        ToolButton: load:
-            text = 'Load analysis'
-            popup_mode = 'instant'
-            Menu:
-                Looper: looper:
-                    iterable << analyzed_filenames[:]
-                    Menu:
-                        title << loop_item.stem
-                        Action:
-                            text = 'Plot'
-                            triggered ::
-                                presenter.load_analysis(loop_item)
-                        Action:
-                            text = 'Delete'
-                            triggered ::
-                                mesg = 'Are you sure you want to remove this file?'
-                                buttons = [
-                                    DialogButton('Yes', 'accept'),
-                                    DialogButton('No', 'reject'),
-                                ]
-                                result = warning(None, 'Delete', mesg, buttons)
-                                if result.text == 'Yes':
-                                    loop_item.unlink()
-                                    items = di.analyzed_filenames[:]
-                                    items.remove(loop_item)
-                                    di.analyzed_filenames = items
+        Label: label:
+            text = 'Progress (n={})'.format(len(presenter.unprocessed))
+        ProgressBar: progress:
+            value << presenter.current_model
+            maximum << len(presenter.unprocessed)
+            text_visible = True
 
-        PushButton: supra:
-            text = 'All above threshold'
-            clicked ::
-                presenter.set_suprathreshold()
+        MPLContainer: container:
+            padding = 0
 
-        PushButton: sub:
-            text = 'All below threshold'
-            clicked ::
-                presenter.set_subthreshold()
 
-        CheckBox: show_filename:
-            checked = False
-            text = 'Show filename'
+enamldef MPLDockItem(DockItem):
 
-        Label: filename:
-            visible << show_filename.checked
-            text << str(getattr(presenter.model, 'filename', ''))
+    alias presenter: container.presenter
+    alias analyzed_filenames: container.analyzed_filenames
 
-        MPLCanvas: canvas:
-            figure << presenter.figure
-            toolbar_visible = False
-            initialized ::
-                deferred_call(bind, figure, presenter)
+    MPLContainer: container:
+        pass
 
 
 def add_dock_item(dock_area, model, path, presenter, analyzed_filenames):
@@ -226,8 +259,6 @@ def load_files(parser, latencies, filenames, dock_area):
             try:
                 analyzed_filenames = \
                     parser.find_analyzed_files(model.filename, model.freq)
-                print(model.filename)
-                print(analyzed_filenames)
                 presenter = WaveformPresenter(parser, latencies)
                 add_dock_item(dock_area, model, filename, presenter,
                               analyzed_filenames)
@@ -261,7 +292,7 @@ enamldef DNDWindow(MainWindow):
                     t = urllib.parse.unquote(t).strip()
                     fragments = urllib.parse.urlsplit(t)
                     path = urllib.request.url2pathname(fragments.path)
-                    filenames.append(path)
+                    filenames.append((path, None))
                 load_files(parser, latencies, filenames, dock_area)
 
 

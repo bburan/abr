@@ -138,9 +138,6 @@ class Parser(object):
 
     def load_analysis(self, series, filename):
         freq, th, peaks = load_analysis(filename)
-        if series.freq != (freq * 1e3):
-            raise ValueError('Series frequency does not match')
-
         series.threshold = th
         p_latencies, n_latencies = parse_peaks(peaks, th)
         series._set_points(p_latencies, Point.PEAK)
@@ -182,7 +179,7 @@ class Parser(object):
         spreadsheet = '\n'.join(waveform_string(w) \
                                 for w in reversed(model.waveforms))
         content = CONTENT.format(threshold=model.threshold,
-                                 frequency=model.freq,
+                                 frequency=model.freq*1e-3,
                                  filter_history=filter_history,
                                  columns=columns,
                                  spreadsheet=spreadsheet)
@@ -191,25 +188,30 @@ class Parser(object):
         with open(filename, 'w') as fh:
             fh.writelines(content)
 
-    def find_all(self, dirname):
-        return self._module.find_all(dirname, self._filter_settings)
+    def find_all(self, dirname, frequencies=None):
+        result = self._module.find_all(dirname, self._filter_settings)
+        if frequencies is not None:
+            if np.isscalar(frequencies):
+                frequencies = [frequencies]
+            result = [(p, f) for (p, f) in result if f in frequencies]
+        return result
 
-    def find_processed(self, dirname):
-        return [(p, f) for p, f in self.find_all(dirname) \
+    def find_processed(self, dirname, frequencies=None):
+        return [(p, f) for p, f in self.find_all(dirname, frequencies) \
                 if self.get_save_filename(p, f).exists()]
 
-    def find_unprocessed(self, dirname):
-        return [(p, f) for p, f in self.find_all(dirname) \
+    def find_unprocessed(self, dirname, frequencies=None):
+        return [(p, f) for p, f in self.find_all(dirname, frequencies) \
                 if not self.get_save_filename(p, f).exists()]
 
-    def find_analyses(self, dirname):
+    def find_analyses(self, dirname, frequencies=None):
         analyzed = {}
-        for p, f in self.find_all(dirname):
+        for p, f in self.find_all(dirname, frequencies):
             analyzed[p, f] = self.find_analyzed_files(p, f)
         return analyzed
 
-    def load_analyses(self, dirname):
-        analyzed = self.find_analyses(dirname)
+    def load_analyses(self, dirname, frequencies=None):
+        analyzed = self.find_analyses(dirname, frequencies)
         keys = []
         thresholds = []
         for (raw_file, frequency), analyzed_files in analyzed.items():
@@ -232,3 +234,10 @@ NOTE: Negative latencies indicate no peak
 {columns}
 {spreadsheet}
 '''.strip()
+
+
+PARSER_MAP = {
+    'PSI': 'psiexperiment',
+    'EPL': 'EPL CFTS',
+    'NCRAR': 'IHS text export',
+}

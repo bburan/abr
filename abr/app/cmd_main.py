@@ -1,4 +1,5 @@
 import argparse
+from pathlib import Path
 
 import enaml
 from enaml.application import deferred_call
@@ -23,8 +24,10 @@ def main():
     app = QtApplication()
     view = DNDWindow(parser=options['parser'], latencies=options['latencies'])
 
+    filenames = [(Path(f), None) for f in options['filenames']]
+
     deferred_call(load_files, options['parser'], options['latencies'],
-                  options['filenames'], view.find('dock_area'))
+                  filenames, view.find('dock_area'))
 
     view.show()
     app.start()
