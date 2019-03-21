@@ -6,7 +6,7 @@ import sys
 
 from setuptools import find_packages, setup
 
-with open(os.path.join(os.path.dirname(__file__), 'README.rst')) as f:
+with open(os.path.join(os.path.dirname(__file__), 'README.md')) as f:
     readme = f.read()
 
 packages = [
@@ -18,6 +18,8 @@ package_data = {
 }
 
 requires = [
+    'atom',
+    'enaml',
     'numpy',
     'matplotlib',
     'scipy',
@@ -25,14 +27,20 @@ requires = [
 ]
 
 classifiers = [
-        'Operating System :: OS Independent',
-        'Programming Language :: Python',
+    'Operating System :: OS Independent',
+    'Programming Language :: Python :: 3',
+    'License :: OSI Approved :: BSD License',
 ]
 
 setup(
     name='ABR',
+    version='0.0.0',
+    author='Brad Buran',
+    author_email='bburan@alum.mit.edu',
     description='ABR wave analyzer',
     long_description=readme,
+    long_description_content_type='text/markdown',
+    url='https://github.com/bburan/abr',
     packages=find_packages(),
     package_data=package_data,
     install_requires=requires,
