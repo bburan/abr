@@ -127,8 +127,9 @@ class WaveformPresenter(Atom):
     def save(self):
         if np.isnan(self.model.threshold):
             raise ValueError('Threshold not set')
-        if not self.peaks_marked or not self.valleys_marked:
-            raise ValueError('Waves not identified')
+        if self.latencies:
+            if not self.peaks_marked or not self.valleys_marked:
+                raise ValueError('Waves not identified')
         self.parser.save(self.model)
 
     def update(self):
@@ -186,12 +187,9 @@ class WaveformPresenter(Atom):
     def set_threshold(self, threshold=None):
         if threshold is None:
             threshold = self.get_current_waveform().level
-
         self.model.threshold = threshold
         self.threshold_marked = True
-        if not self.latencies:
-            self.save()
-        elif not self.peaks_marked:
+        if self.latencies and not self.peaks_marked:
             self.guess()
         self.update()
 

@@ -14,7 +14,7 @@ with enaml.imports():
 
 
 def main():
-    parser = argparse.ArgumentParser("abr_gui")
+    parser = argparse.ArgumentParser('abr_gui')
     add_default_arguments(parser)
     parser.add_argument('--demo', action='store_true', dest='demo',
                         default=False, help='Load demo data')

@@ -45,7 +45,6 @@ def load(base_directory, filter_settings=None, frequencies=None):
         frequency = float(frequency)
         level = float(level)
         waveform = ABRWaveform(fs, w, level)
-        print(w.tail())
         waveforms.setdefault(frequency, []).append(waveform)
 
     series = []
