@@ -291,7 +291,7 @@ enamldef DNDWindow(MainWindow):
                 for t in text.strip().split('\n'):
                     t = urllib.parse.unquote(t).strip()
                     fragments = urllib.parse.urlsplit(t)
-                    path = urllib.request.url2pathname(fragments.path)
+                    path = Path(urllib.request.url2pathname(fragments.path))
                     filenames.append((path, None))
                 load_files(parser, latencies, filenames, dock_area)
 
