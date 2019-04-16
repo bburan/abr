@@ -1,0 +1,52 @@
+{% set name = "ABR" %}
+{% set version = "0.0.1" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
+  # openssl sha256 ./dist/ABR-0.0.1.tar.gz
+  sha256: 3b0682df19f9ab8a26fd30bdcfe5e785e96b378505e1eb457b9b156be80e9722
+
+build:
+  # noarch: python
+  number: 0
+  script: "{{ PYTHON }} -m pip install . --no-deps -vv"
+
+requirements:
+  host:
+    - python
+    - pip
+  run:
+    - python
+    - atom
+    - enaml
+    - matplotlib
+    - numpy
+    - scipy
+    - pandas
+
+test:
+  # Some package might need a `test/commands` key to check CLI.
+  # List all the packages/modules that `run_test.py` imports.
+  imports:
+    - abr
+    - abr.app
+    - abr.parsers
+  commands:
+    - abr
+    - abr_gui
+
+about:
+  home: http://github.com/bburan/abr
+  license: BSD-3-Clause
+  license_family: BSD
+  summary: 'GUI for analyzing auditory brainstem responses (ABRs)'
+  doc_url: http://github.com/bburan/abr
+  dev_url: https://github.com/bburan/abr
+
+extra:
+  recipe-maintainers:
+    - bburan
