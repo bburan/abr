@@ -11,9 +11,6 @@ from matplotlib import transforms as T
 from abr.abrpanel import WaveformPlot
 from abr.datatype import ABRSeries, WaveformPoint, Point
 
-# Maximum spacing, in seconds, between positive and negative points of wave.
-MAX_PN_DELTA = 0.25
-
 
 def plot_model(axes, model):
     n = len(model.waveforms)
