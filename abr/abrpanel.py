@@ -1,10 +1,20 @@
 from pathlib import Path
 
 import matplotlib as mp
-from matplotlib.pylab import setp
+mp.rcParams['backend'] = 'qt5agg'
+mp.rcParams['axes.labelsize'] = 14
+mp.rcParams['axes.labelweight'] = 'bold'
+mp.rcParams['axes.spines.left'] = False
+mp.rcParams['axes.spines.bottom'] = True
+mp.rcParams['axes.spines.top'] = False
+mp.rcParams['axes.spines.right'] = False
+mp.rcParams['ytick.left'] = False
+mp.rcParams['figure.subplot.left'] = 0.1
+mp.rcParams['figure.subplot.right'] = 0.8
+mp.rcParams['figure.subplot.bottom'] = 0.1
+mp.rcParams['figure.subplot.top'] = 0.8
 
-rc_path = Path(__file__).parent / 'matplotlibrc'
-mp.rc_file(str(rc_path))
+from matplotlib.pylab import setp
 
 
 class StylePlot:
