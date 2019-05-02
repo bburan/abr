@@ -9,7 +9,7 @@ from enaml.stdlib.dialog_buttons import DialogButton
 from enaml.stdlib.message_box import warning
 from enaml.stdlib.message_box import critical
 from enaml.widgets.api import (Action, ActionGroup, CheckBox, Container,
-                               DockArea, DockItem, Label, Feature, Form,
+                               DockArea, DockItem, GroupBox, Label, Feature, Form,
                                HGroup, MainWindow, Menu, MPLCanvas,
                                ObjectCombo, ProgressBar, PushButton,
                                ToolButton, VGroup)
@@ -110,14 +110,28 @@ enamldef MPLContainer(Container): di:
 
     constraints = [
         vbox(
+            #keys,
             hbox(show_filename, supra, sub, load, spacer),
-            hbox(guess, clear, spacer),
+            #hbox(guess, clear, spacer),
+            hbox(clear, spacer),
             filename,
             canvas
         ),
         supra.width == sub.width,
         load.width == 200,
     ]
+
+    #GroupBox: keys:
+    #    Label:
+    #        text =  't\t\t\tset threshold'
+    #    Label:
+    #        text =  '<number key>\t\tselect peak'
+    #    Label:
+    #        text =  'Alt + <number key>\tselect valley'
+    #    Label:
+    #        text =  '<up/down key>\t\tselect waveform'
+    #    Label:
+    #        text =  '<left/right key>\t\tmove selected peak/valley'
 
     ToolButton: load:
         text = 'Load analysis'
@@ -146,18 +160,18 @@ enamldef MPLContainer(Container): di:
                                 items.remove(loop_item)
                                 di.analyzed_filenames = items
 
-    ToolButton: guess:
-        text = 'Guess'
-        popup_mode = 'instant'
-        Menu:
-            Action:
-                text = 'Peaks'
-                triggered ::
-                    presenter.guess_peaks()
-            Action:
-                text = 'Valleys'
-                triggered ::
-                    presenter.guess_valleys()
+    #ToolButton: guess:
+    #    text = 'Guess'
+    #    popup_mode = 'instant'
+    #    Menu:
+    #        Action:
+    #            text = 'Peaks'
+    #            triggered ::
+    #                presenter.guess_peaks()
+    #        Action:
+    #            text = 'Valleys'
+    #            triggered ::
+    #                presenter.guess_valleys()
 
     ToolButton: clear:
         text = 'Clear'

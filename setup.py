@@ -23,7 +23,7 @@ requires = [
     'matplotlib',
     'numpy',
     'pandas',
-    'pyqt5',
+    #'pyqt5',
     'scipy',
 ]
 
