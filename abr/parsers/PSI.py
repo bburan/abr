@@ -11,13 +11,20 @@ from abr.datatype import ABRWaveform, ABRSeries
 base_template = 'ABR -1.0ms to 9.0ms{}average waveforms.csv'
 nofilter_template = base_template.format(' ')
 filter_template = base_template.format(' with {:.0f}Hz to {:.0f}Hz filter ')
+filter_order_template = base_template.format(' with {:.0f} order {:.0f}Hz to {:.0f}Hz filter ')
 
 
 def get_filename(pathname, filter_settings):
     if filter_settings is not None:
-        filename = filter_template.format(
-            filter_settings['highpass'],
-            filter_settings['lowpass'])
+        if filter_settings['order'] != 1:
+            filename = filter_order_template.format(
+                filter_settings['order'],
+                filter_settings['highpass'],
+                filter_settings['lowpass'])
+        else:
+            filename = filter_template.format(
+                filter_settings['highpass'],
+                filter_settings['lowpass'])
     else:
         filename = nofilter_template
 
