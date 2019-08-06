@@ -8,6 +8,7 @@ import pandas as pd
 from abr.datatype import ABRWaveform, ABRSeries
 
 
+#base_template = 'ABR -1.0ms to 9.0ms{}matched epochs average waveforms.csv'
 base_template = 'ABR -1.0ms to 9.0ms{}average waveforms.csv'
 nofilter_template = base_template.format(' ')
 filter_template = base_template.format(' with {:.0f}Hz to {:.0f}Hz filter ')
