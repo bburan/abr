@@ -291,7 +291,7 @@ class SerialWaveformPresenter(WaveformPresenter):
         self.load(model)
 
     def load_next(self):
-        if self.current_model > len(self.unprocessed):
+        if self.current_model >= len(self.unprocessed):
             return
         self.current_model += 1
         filename, frequency = self.unprocessed[self.current_model]

@@ -21,12 +21,14 @@ def main():
     parser.add_argument('dirnames', nargs='*')
     parser.add_argument('--list', action='store_true')
     parser.add_argument('--skip-errors', action='store_true')
+    parser.add_argument('--frequencies', nargs='*', type=float)
     options = parse_args(parser)
     parser = options['parser']
 
     unprocessed = []
     for dirname in options['dirnames']:
-        files = parser.find_unprocessed(dirname)
+        files = parser.find_unprocessed(dirname,
+                                        frequencies=options['frequencies'])
         unprocessed.extend(files)
 
     if len(unprocessed) == 0:

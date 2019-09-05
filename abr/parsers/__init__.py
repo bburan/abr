@@ -189,7 +189,8 @@ class Parser(object):
             fh.writelines(content)
 
     def find_all(self, dirname, frequencies=None):
-        result = self._module.find_all(dirname, self._filter_settings)
+        result = self._module.find_all(dirname, self._filter_settings,
+                                       frequencies=frequencies)
         if frequencies is not None:
             if np.isscalar(frequencies):
                 frequencies = [frequencies]
@@ -201,8 +202,9 @@ class Parser(object):
                 if self.get_save_filename(p, f).exists()]
 
     def find_unprocessed(self, dirname, frequencies=None):
-        return [(p, f) for p, f in self.find_all(dirname, frequencies) \
-                if not self.get_save_filename(p, f).exists()]
+        # k is tuple of path, frequency
+        iterator = self.find_all(dirname, frequencies=frequencies)
+        return [k for k in iterator if not self.get_save_filename(*k).exists()]
 
     def find_analyses(self, dirname, frequencies=None):
         analyzed = {}

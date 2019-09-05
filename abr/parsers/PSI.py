@@ -71,11 +71,14 @@ def get_frequencies(filename, filter_settings):
     return frequencies.astype('float')
 
 
-def find_all(dirname, filter_settings):
+def find_all(dirname, filter_settings, frequencies=None):
+    print(frequencies)
     results = []
     for pathname in Path(dirname).glob('*abr*'):
         if pathname.is_dir() :
             filename = get_filename(pathname, filter_settings)
             for frequency in get_frequencies(filename, filter_settings):
+                if frequencies is not None and frequency not in frequencies:
+                    continue
                 results.append((filename, frequency))
     return results
