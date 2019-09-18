@@ -119,7 +119,7 @@ enamldef LaunchWindow(MainWindow):
             visible << do_filter.checked
 
         Label: l_filter_end:
-            text = 'kHz'
+            text = 'Hz'
             visible << do_filter.checked
 
         IntField: filter_lb:
