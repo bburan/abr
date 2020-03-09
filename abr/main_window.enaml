@@ -1,6 +1,6 @@
 import os.path
 from pathlib import Path
-import urllib
+import urllib.request
 
 from enaml.application import deferred_call
 from enaml.core.api import Looper
