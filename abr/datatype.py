@@ -45,12 +45,12 @@ class ABRWaveform:
         return signal.detrend(self.signal.values)
 
     def is_subthreshold(self):
-        if self.series.threshold is None:
+        if self.series.threshold is None or np.isnan(self.series.threshold):
             return False
         return self.level < self.series.threshold
 
     def is_suprathreshold(self):
-        if self.series.threshold is None:
+        if self.series.threshold is None or np.isnan(self.series.threshold):
             return True
         return self.level >= self.series.threshold
 
