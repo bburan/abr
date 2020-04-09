@@ -18,6 +18,7 @@ class Settings(Atom):
     analyzer = Unicode()
     waves = List()
     filter_data = Bool(True)
+    shuffle = Bool(True)
     filter_lb = Int(300)
     filter_ub = Int(3000)
     last_directory = Unicode()
@@ -32,8 +33,11 @@ class Settings(Atom):
             args.extend(['--lowpass', str(self.filter_ub)])
         else:
             args.append('--nofilter')
-        args.append('--waves')
-        args.extend(str(w) for w in self.waves)
+        if self.waves:
+            args.append('--waves')
+            args.extend(str(w) for w in self.waves)
+        else:
+            args.append('--threshold-only')
         return args
 
     def launch_basic(self):
@@ -41,15 +45,18 @@ class Settings(Atom):
         args.extend(self.get_default_args())
         result = subprocess.check_output(args)
 
-    def launch_loop(self):
+    def launch_batch(self):
         directory = FileDialogEx.get_existing_directory(current_path=self.last_directory)
         if not directory:
             return
+
         self.last_directory = directory
-        args = ['abr_loop', '--skip-errors']
+        args = ['abr_batch', '--skip-errors']
         args.append(directory)
         args.extend(self.get_default_args())
-        print(' '.join(args))
+        if self.shuffle:
+            args.append('--shuffle')
+
         result = subprocess.check_output(args)
         if result.decode().strip() == 'No files to process':
             mesg = 'No ABR experiments found in {}'.format(directory)
@@ -71,12 +78,14 @@ enamldef LaunchWindow(MainWindow):
                 hbox(m_label, waves),
                 hbox(do_filter, filter_lb, l_filter_to, filter_ub, l_filter_end),
                 hbox(b_basic, b_loop),
+                shuffle,
             ),
             a_label.width == m_label.width,
             a_label.width == p_label.width,
             a_label.width == do_filter.width,
             b_basic.width == b_loop.width,
             m_label.v_center == waves.v_center,
+            shuffle.left == b_loop.left,
         ]
 
         Label: a_label:
@@ -136,6 +145,11 @@ enamldef LaunchWindow(MainWindow):
                 settings.launch_basic()
 
         PushButton: b_loop:
-            text = 'Launch auto'
+            text = 'Batch mode'
             clicked ::
-                settings.launch_loop()
+                settings.launch_batch()
+
+        CheckBox: shuffle:
+            text = 'Shuffle?'
+            checked := settings.shuffle
+

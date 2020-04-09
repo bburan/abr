@@ -23,7 +23,6 @@ requires = [
     'matplotlib',
     'numpy',
     'pandas',
-    #'pyqt5',
     'scipy',
 ]
 
@@ -48,9 +47,10 @@ setup(
     classifiers=classifiers,
     entry_points={
         'console_scripts': [
-            'abr = abr.app.cmd_launcher:main',
-            'abr_gui = abr.app.cmd_main:main',
-            'abr_loop = abr.app.cmd_main_loop:main',
+            'abr = abr.app:main_launcher',
+            'abr_gui = abr.app:main_gui',
+            'abr_batch = abr.app:main_batch',
+            'abr_compare = abr.app:main_compare',
         ]
     },
 )
