@@ -10,6 +10,8 @@ from enaml.widgets.api import (CheckBox, Container, Field, FileDialogEx,
                                HGroup, Label, MainWindow, ObjectCombo,
                                PushButton)
 
+
+from abr import main_icon
 from abr.parsers import PARSER_MAP
 
 
@@ -66,6 +68,7 @@ class Settings(Atom):
 enamldef LaunchWindow(MainWindow):
 
     title = 'ABR analysis'
+    icon = main_icon
 
     attr settings = Settings(waves=[1])
 
@@ -152,4 +155,3 @@ enamldef LaunchWindow(MainWindow):
         CheckBox: shuffle:
             text = 'Shuffle?'
             checked := settings.shuffle
-

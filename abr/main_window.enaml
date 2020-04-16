@@ -14,7 +14,8 @@ from enaml.widgets.api import (Action, ActionGroup, CheckBox, Container,
                                ObjectCombo, ProgressBar, PushButton,
                                ToolButton, VGroup)
 
-from .datatype import Point
+from abr import main_icon
+from abr.datatype import Point
 
 
 def bind(figure, presenter):
@@ -222,7 +223,8 @@ enamldef SerialWindow(MainWindow):
     alias presenter: container.presenter
 
     initial_size = (600, 900)
-    title = 'ABR loop'
+    title = 'ABR batch mode'
+    icon = main_icon
 
     Container:
         constraints = [
@@ -286,8 +288,10 @@ enamldef DNDWindow(MainWindow):
 
     attr parser
     attr latencies
+    icon = main_icon
 
     initial_size = (600, 900)
+    title = 'ABR analysis'
 
     Container:
 
@@ -320,6 +324,7 @@ enamldef CompareWindow(MainWindow):
     attr parser
 
     initial_size = (1000, 600)
+    icon = main_icon
 
     initialized ::
         compare.observe('selected', selected_changed)

@@ -1,2 +1,3 @@
 recursive-include abr *.enaml
 recursive-include abr/data *
+recursive-include abr *.png

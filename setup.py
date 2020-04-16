@@ -27,7 +27,7 @@ classifiers = [
 
 setup(
     name='ABR',
-    version='0.0.1',
+    version='0.0.2',
     author='Brad Buran',
     author_email='bburan@alum.mit.edu',
     description='ABR wave analyzer',
