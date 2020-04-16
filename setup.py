@@ -9,13 +9,6 @@ from setuptools import find_packages, setup
 with open(os.path.join(os.path.dirname(__file__), 'README.md')) as f:
     readme = f.read()
 
-packages = [
-    'abr',
-]
-
-package_data = {
-    'abr': ['*.enaml', 'data/*', 'matplotlibrc'],
-}
 
 requires = [
     'atom',
@@ -42,7 +35,7 @@ setup(
     long_description_content_type='text/markdown',
     url='https://github.com/bburan/abr',
     packages=find_packages(),
-    package_data=package_data,
+    include_package_data=True,
     install_requires=requires,
     classifiers=classifiers,
     entry_points={
