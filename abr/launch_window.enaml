@@ -1,6 +1,6 @@
 import subprocess
 
-from atom.api import Atom, Bool, Enum, Int, List, Unicode
+from atom.api import Atom, Bool, Enum, Int, List, Str
 
 from enaml.core.api import Looper
 from enaml.layout.api import hbox, vbox
@@ -17,13 +17,13 @@ from abr.parsers import PARSER_MAP
 
 class Settings(Atom):
 
-    analyzer = Unicode()
+    analyzer = Str()
     waves = List()
     filter_data = Bool(True)
     shuffle = Bool(True)
     filter_lb = Int(300)
     filter_ub = Int(3000)
-    last_directory = Unicode()
+    last_directory = Str()
     parser = Enum(*list(PARSER_MAP.keys()))
 
     def get_default_args(self):

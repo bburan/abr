@@ -7,7 +7,7 @@ from numpy import random
 import pandas as pd
 from scipy import stats
 
-from atom.api import Bool, Typed, Unicode
+from atom.api import Bool, Typed, Str
 import enaml
 from enaml.application import deferred_call
 from enaml.core.api import d_, Declarative
@@ -154,8 +154,8 @@ def main_batch():
 class Compare(Declarative):
 
     data = Typed(pd.DataFrame)
-    x_column = d_(Unicode())
-    y_column = d_(Unicode())
+    x_column = d_(Str())
+    y_column = d_(Str())
     as_difference = d_(Bool(True))
     jitter = d_(Bool(True))
     axes = Typed(pl.Axes)
