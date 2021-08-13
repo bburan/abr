@@ -1,49 +1,51 @@
 import glob
+import json
 import os.path
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy import signal
 
 from abr.datatype import ABRWaveform, ABRSeries
 
 
-#base_template = 'ABR -1.0ms to 9.0ms{}matched epochs average waveforms.csv'
-base_template = 'ABR -1.0ms to 9.0ms{}average waveforms.csv'
-nofilter_template = base_template.format(' ')
-filter_template = base_template.format(' with {:.0f}Hz to {:.0f}Hz filter ')
-filter_order_template = base_template.format(' with {:.0f} order {:.0f}Hz to {:.0f}Hz filter ')
-
-
-def get_filename(pathname, filter_settings):
-    if filter_settings is not None:
-        if filter_settings['order'] != 1:
-            filename = filter_order_template.format(
-                filter_settings['order'],
-                filter_settings['highpass'],
-                filter_settings['lowpass'])
-        else:
-            filename = filter_template.format(
-                filter_settings['highpass'],
-                filter_settings['lowpass'])
-    else:
-        filename = nofilter_template
-
+def get_filename(pathname):
+    filename = 'ABR average waveforms.csv'
     if pathname.name == filename:
         return pathname
-    else:
-        return pathname / filename
+    return pathname / filename
 
 
 def load(base_directory, filter_settings=None, frequencies=None):
-    filename = get_filename(base_directory, filter_settings)
+    filename = get_filename(base_directory)
+    with filename.open() as fh:
+        fh.readline() # frequency
+        fh.readline() # level
+        has_metadata = fh.readline().startswith('epoch_n')
+
     if frequencies is not None and np.isscalar(frequencies):
         frequencies = [frequencies]
 
-    data = pd.io.parsers.read_csv(filename, header=[0, 1], index_col=0).T
-    fs = np.mean(np.diff(data.columns.values)**-1)
+    if has_metadata:
+        data = pd.io.parsers.read_csv(filename, header=[0, 1, 2, 3], index_col=0).T
+        data = data.reset_index(['epoch_n', 'epoch_reject_ratio'], drop=True)
+        settings_file = filename.parent / 'ABR processing settings.json'
+        fs = json.loads(settings_file.read_text())['actual_fs']
+        print(fs)
+    else:
+        data = pd.io.parsers.read_csv(filename, header=[0, 1], index_col=0).T
+        fs = np.mean(np.diff(data.columns.values)**-1)
+    if filter_settings is not None:
+        Wn = filter_settings['highpass'], filter_settings['lowpass']
+        N = filter_settings['order']
+        b, a = signal.iirfilter(N, Wn, fs=fs)
+        data_filt = signal.filtfilt(b, a, data.values, axis=-1)
+        data = pd.DataFrame(data_filt, columns=data.columns, index=data.index)
+
     data.columns *= 1e3
     waveforms = {}
+
     for (frequency, level), w in data.iterrows():
         frequency = float(frequency)
         level = float(level)
@@ -65,19 +67,18 @@ def load(base_directory, filter_settings=None, frequencies=None):
     return series
 
 
-def get_frequencies(filename, filter_settings):
+def get_frequencies(filename):
     data = pd.io.parsers.read_csv(filename, header=[0, 1], index_col=0).T
     frequencies = np.unique(data.index.get_level_values('frequency'))
     return frequencies.astype('float')
 
 
-def find_all(dirname, filter_settings, frequencies=None):
-    print(frequencies)
+def find_all(dirname, frequencies=None):
     results = []
     for pathname in Path(dirname).glob('*abr*'):
         if pathname.is_dir() :
-            filename = get_filename(pathname, filter_settings)
-            for frequency in get_frequencies(filename, filter_settings):
+            filename = get_filename(pathname)
+            for frequency in get_frequencies(filename):
                 if frequencies is not None and frequency not in frequencies:
                     continue
                 results.append((filename, frequency))

@@ -189,8 +189,7 @@ class Parser(object):
             fh.writelines(content)
 
     def find_all(self, dirname, frequencies=None):
-        result = self._module.find_all(dirname, self._filter_settings,
-                                       frequencies=frequencies)
+        result = self._module.find_all(dirname, frequencies=frequencies)
         if frequencies is not None:
             if np.isscalar(frequencies):
                 frequencies = [frequencies]
