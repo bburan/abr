@@ -9,7 +9,7 @@ from scipy import signal
 from abr.datatype import ABRWaveform, ABRSeries
 
 
-def load(filename, filter=None, frequencies=None):
+def load(filename, filter_settings=None, frequencies=None):
     filename = Path(filename)
     with filename.open(encoding='ISO-8859-1') as f:
         line = f.readline()
@@ -41,10 +41,10 @@ def load(filename, filter=None, frequencies=None):
             t = np.arange(data.shape[-1]) / fs * 1e3
             t = pd.Index(t, name='time')
 
-            if filter is not None:
-                Wn = filter['highpass']/(0.5*fs), filter['lowpass']/(0.5*fs)
-                N = filter['order']
-                b, a = signal.iirfilter(N, Wn)
+            if filter_settings is not None:
+                Wn = filter_settings['highpass'], filter_settings['lowpass']
+                N = filter_settings['order']
+                b, a = signal.iirfilter(N, Wn, fs=fs)
                 data = signal.filtfilt(b, a, data, axis=-1)
 
             waveforms = []
