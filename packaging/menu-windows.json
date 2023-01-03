@@ -1,0 +1,11 @@
+{
+    "menu_name": "Auditory Wave Analysis",
+    "menu_items":
+        [
+            {
+                "script": "${PREFIX}/Scripts/abr.exe",
+                "name": "Auditory Wave Analysis",
+                "icon": "${MENU_DIR}/abr-icon.ico"
+            }
+        ]
+}

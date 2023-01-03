@@ -11,9 +11,13 @@ source:
   sha256: d83951257bc8cbd0def161f052abc9e0df74b4a98f593f69d313786ed0ec9be3
 
 build:
-  number: 1
-  script: "{{ PYTHON }} -m pip install . --no-deps -vv"
+  number: 5
   noarch: python
+  entry_points: 
+  - abr = abr.app:main_launcher
+  - abr_gui = abr.app:main_gui
+  - abr_batch = abr.app:main_batch
+  - abr_compare = abr.app:main_compare
 
 requirements:
   host:
@@ -40,6 +44,7 @@ test:
   commands:
     - abr
     - abr_gui --threshold-only --demo
+    - abr_batch --help
 
 about:
   home: http://github.com/bburan/abr
