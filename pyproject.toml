@@ -1,0 +1,49 @@
+[project]
+name = "ABR"
+description = "Evoked potential analysis software"
+requires-python = ">=3.7"
+license = {file = "LICENSE.txt"}
+readme = "README.md"
+authors = [
+    {name = "Brad Buran", email="bburan@alum.mit.edu"},
+    {name = "Brad Buran", email="buran@ohsu.edu"},
+]
+maintainers = [
+    {name = "Brad Buran", email="bburan@alum.mit.edu"},
+    {name = "Brad Buran", email="buran@ohsu.edu"},
+]
+dependencies = [
+	"atom",
+	"enaml[qt5-pyqt]",
+	"numpy",
+	"scipy",
+	"pandas",
+	"matplotlib",
+]
+dynamic = ["version"]
+classifiers = [
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: BSD License",
+]
+
+[project.urls]
+homepage = "https://github.com/bburan/abr"
+documentation = "https://github.com/bburan/abr"
+repository = "https://github.com/bburan/abr"
+
+[project.scripts]
+abr = "abr.app:main_launcher"
+abr-gui = "abr.app:main_gui"
+abr-batch = "abr.app:main_batch"
+abr-compare = "abr.app:main_compare"
+
+[build-system]
+requires = ["setuptools>=61.2", "wheel", "setuptools_scm[toml]>=3.4.3"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "abr/version.py"
+
+[tool.setuptools.packages.find]
+exclude = ["packaging"]
