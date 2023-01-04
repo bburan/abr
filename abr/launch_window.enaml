@@ -67,8 +67,8 @@ class Settings(Atom):
 
     def get_default_args(self):
         args = ['--parser', self.parser]
-        if self.analyzer:
-            args.extend(['--user', self.analyzer])
+        if self.rater:
+            args.extend(['--user', self.rater])
         if self.filter_data:
             args.extend(['--highpass', str(self.filter_lb)])
             args.extend(['--lowpass', str(self.filter_ub)])
@@ -134,7 +134,7 @@ enamldef LaunchWindow(MainWindow):
             text = 'Analyzer'
 
         Field: a_field:
-            text := settings.analyzer
+            text := settings.rater
 
         Label: m_label:
             text = 'Measure waves'
