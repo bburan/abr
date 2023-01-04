@@ -11,20 +11,59 @@ from enaml.widgets.api import (CheckBox, Container, Field, FileDialogEx,
                                PushButton)
 
 
+from enaml.qt import QtCore
+STORE = QtCore.QSettings('ABR', 'ABRAnalysis')
+
 from abr import main_icon
 from abr.parsers import PARSER_MAP
 
 
 class Settings(Atom):
 
-    analyzer = Str()
+    rater = Str()
     waves = List()
-    filter_data = Bool(True)
-    shuffle = Bool(True)
-    filter_lb = Int(300)
-    filter_ub = Int(3000)
+    filter_data = Bool()
+    shuffle = Bool()
+    filter_lb = Int()
+    filter_ub = Int()
     last_directory = Str()
     parser = Enum(*list(PARSER_MAP.keys()))
+
+    def _default_rater(self):
+        return STORE.value('rater', '')
+
+    def _observe_rater(self, event):
+        STORE.setValue('rater', self.rater)
+
+    def _default_filter_lb(self):
+        return STORE.value('filter_lb', 300)
+
+    def _observe_filter_lb(self, event):
+        STORE.setValue('filter_lb', self.filter_lb)
+
+    def _default_filter_ub(self):
+        return STORE.value('filter_ub', 3000)
+
+    def _observe_filter_ub(self, event):
+        STORE.setValue('filter_ub', self.filter_ub)
+
+    def _default_shuffle(self):
+        return bool(STORE.value('shuffle', 1))
+
+    def _observe_shuffle(self, event):
+        STORE.setValue('shuffle', int(self.shuffle))
+
+    def _default_filter_data(self):
+        return bool(STORE.value('filter_data', 1))
+
+    def _observe_filter_data(self, event):
+        STORE.setValue('filter_data', int(self.filter_data))
+
+    def _default_waves(self):
+        return STORE.value('waves', [1, 2, 3, 4, 5])
+
+    def _observe_waves(self, event):
+        STORE.setValue('waves', self.waves)
 
     def get_default_args(self):
         args = ['--parser', self.parser]
