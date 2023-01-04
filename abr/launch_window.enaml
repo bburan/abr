@@ -82,7 +82,7 @@ class Settings(Atom):
         return args
 
     def launch_basic(self):
-        args = ['abr_gui']
+        args = ['abr-gui']
         args.extend(self.get_default_args())
         result = subprocess.check_output(args)
 
@@ -92,7 +92,7 @@ class Settings(Atom):
             return
 
         self.last_directory = directory
-        args = ['abr_batch', '--skip-errors']
+        args = ['abr-batch', '--skip-errors']
         args.append(directory)
         args.extend(self.get_default_args())
         if self.shuffle:
@@ -108,8 +108,7 @@ enamldef LaunchWindow(MainWindow):
 
     title = 'ABR analysis'
     icon = main_icon
-
-    attr settings = Settings(waves=[1])
+    attr settings = Settings()
 
     Container:
 
@@ -154,12 +153,16 @@ enamldef LaunchWindow(MainWindow):
 
                 CheckBox:
                     text = str(loop_item)
-                    checked << loop_item in settings.waves[:]
+                    checked << loop_item in settings.waves
                     checked ::
                         if checked:
-                            settings.waves.append(loop_item)
+                            waves = settings.waves[:]
+                            waves.append(loop_item)
+                            settings.waves = waves
                         else:
-                            settings.waves.remove(loop_item)
+                            waves = settings.waves[:]
+                            waves.remove(loop_item)
+                            settings.waves = waves
 
         CheckBox: do_filter:
             text = 'Filter?'
