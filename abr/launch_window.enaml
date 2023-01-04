@@ -183,11 +183,13 @@ enamldef LaunchWindow(MainWindow):
 
         PushButton: b_basic:
             text = 'Launch basic'
+            enabled << bool(settings.rater)
             clicked ::
                 settings.launch_basic()
 
         PushButton: b_loop:
             text = 'Batch mode'
+            enabled << bool(settings.rater)
             clicked ::
                 settings.launch_batch()
 
