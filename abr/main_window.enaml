@@ -270,18 +270,23 @@ def add_dock_item(dock_area, model, path, presenter, analyzed_filenames):
 
 def load_files(parser, latencies, filenames, dock_area):
     from abr.presenter import WaveformPresenter
+    errors = []
     for filename, frequencies in filenames:
-        for model in parser.load(filename, frequencies):
-            try:
+        try:
+            for model in parser.load(filename, frequencies):
                 analyzed_filenames = \
                     parser.find_analyzed_files(model.filename, model.freq)
                 presenter = WaveformPresenter(parser, latencies)
                 add_dock_item(dock_area, model, filename, presenter,
                               analyzed_filenames)
                 presenter.load(model)
-            except FileNotFoundError:
-                mesg = 'Could not load ABR data from {}'.format(path)
-                critical(None, 'Could not load file', mesg)
+        except Exception as e:
+            errors.append(filename)
+
+        if errors:
+            errors = "\n".join(f'{e}' for e in errors)
+            mesg = f'Could not load ABR data from\n{errors}'
+            critical(None, 'Could not load files', mesg)
 
 
 enamldef DNDWindow(MainWindow):
