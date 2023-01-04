@@ -238,7 +238,7 @@ NOTE: Negative latencies indicate no peak
 
 
 PARSER_MAP = {
-    'EPL': 'EPL CFTS',
     'PSI': 'psiexperiment',
     'NCRAR': 'IHS text export',
+    'EPL': 'EPL CFTS',
 }
