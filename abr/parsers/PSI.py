@@ -10,11 +10,19 @@ from scipy import signal
 from abr.datatype import ABRWaveform, ABRSeries
 
 
-def get_filename(pathname):
-    filename = 'ABR average waveforms.csv'
-    if pathname.name == filename:
-        return pathname
-    return pathname / filename
+def get_filename(pathname, suffix='ABR average waveforms.csv'):
+    if pathname.is_file():
+        if pathname.name.endswith(suffix):
+            return pathname
+        else:
+            raise IOError('Invalid ABR file')
+    filename = pathname / suffix
+    if filename.exists():
+        return filename
+    filename = pathname / f'{pathname.stem} {suffix}'
+    if filename.exists():
+        return filename
+    raise IOError(f'Could not find average waveforms file for {pathname}')
 
 
 def load(base_directory, filter_settings=None, frequencies=None):
@@ -30,9 +38,8 @@ def load(base_directory, filter_settings=None, frequencies=None):
     if has_metadata:
         data = pd.io.parsers.read_csv(filename, header=[0, 1, 2, 3], index_col=0).T
         data = data.reset_index(['epoch_n', 'epoch_reject_ratio'], drop=True)
-        settings_file = filename.parent / 'ABR processing settings.json'
+        settings_file = get_filename(filename.parent, 'ABR processing settings.json')
         fs = json.loads(settings_file.read_text())['actual_fs']
-        print(fs)
     else:
         data = pd.io.parsers.read_csv(filename, header=[0, 1], index_col=0).T
         fs = np.mean(np.diff(data.columns.values)**-1)
