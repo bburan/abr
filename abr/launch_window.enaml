@@ -100,7 +100,7 @@ class Settings(Atom):
 
         result = subprocess.check_output(args)
         if result.decode().strip() == 'No files to process':
-            mesg = 'No ABR experiments found in {}'.format(directory)
+            mesg = 'No unrated ABR experiments found in {}'.format(directory)
             information(None, 'No data', mesg)
 
 
