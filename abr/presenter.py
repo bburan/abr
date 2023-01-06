@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from atom.api import (Atom, Typed, Dict, List, Bool, Int, Float, Tuple,
-                      Property, Value)
+                      Property, Value, set_default)
 
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
@@ -96,6 +96,8 @@ class WaveformPresenter(Atom):
     parser = Value()
     latencies = Dict()
 
+    batch_mode = Bool(False)
+
     def _default_axes(self):
         axes = self.figure.add_axes([0.1, 0.1, 0.8, 0.8])
         return axes
@@ -180,6 +182,11 @@ class WaveformPresenter(Atom):
 
     def set_subthreshold(self):
         self.set_threshold(np.inf)
+        if self.latencies:
+            if not self.peaks_marked:
+                self.guess()
+            if not self.valleys_marked:
+                self.guess()
 
     def set_threshold(self, threshold=None):
         if threshold is None:
@@ -269,6 +276,8 @@ class WaveformPresenter(Atom):
     def load_analysis(self, filename):
         self.clear_points()
         self.parser.load_analysis(self.model, filename)
+        self.peaks_marked = True
+        self.valleys_marked = True
         self.update()
 
 
@@ -276,27 +285,28 @@ class SerialWaveformPresenter(WaveformPresenter):
 
     unprocessed = List()
     current_model = Int(-1)
+    batch_mode = set_default(True)
 
     def __init__(self, parser, latencies, unprocessed):
         super().__init__(parser, latencies)
         self.unprocessed = unprocessed
-        self.load_next()
+
+    def load_model(self):
+        filename, frequency = self.unprocessed[self.current_model]
+        model = self.parser.load(filename, frequencies=[frequency])[0]
+        self.load(model)
 
     def load_prior(self):
-        if self.current_model < 0:
+        if self.current_model < 1:
             return
         self.current_model -= 1
-        filename, frequency = self.unprocessed[self.current_model]
-        model = self.parser.load(filename, frequencies=[frequency])[0]
-        self.load(model)
+        self.load_model()
 
     def load_next(self):
-        if self.current_model >= len(self.unprocessed):
+        if self.current_model >= (len(self.unprocessed) - 1):
             return
         self.current_model += 1
-        filename, frequency = self.unprocessed[self.current_model]
-        model = self.parser.load(filename, frequencies=[frequency])[0]
-        self.load(model)
+        self.load_model()
 
     def save(self):
         super().save()

@@ -5,9 +5,9 @@ import urllib.request
 from enaml.application import deferred_call
 from enaml.core.api import Looper
 from enaml.layout.api import hbox, InsertItem, InsertTab, spacer, vbox
+from enaml.qt.QtCore import Qt
 from enaml.stdlib.dialog_buttons import DialogButton
-from enaml.stdlib.message_box import warning
-from enaml.stdlib.message_box import critical
+from enaml.stdlib.message_box import critical, information, warning
 from enaml.widgets.api import (Action, ActionGroup, CheckBox, Container,
                                DockArea, DockItem, GroupBox, Label, Feature, Form,
                                HGroup, MainWindow, Menu, MPLCanvas,
@@ -24,6 +24,15 @@ def bind(figure, presenter):
     figure.canvas.mpl_connect('pick_event', lambda e: i.pick_event(e))
     figure.canvas.mpl_connect('motion_notify_event', lambda e: i.motion_notify(e))
     figure.canvas.mpl_connect('button_release_event', lambda e: i.button_release(e))
+
+
+class ABRCanvas(MPLCanvas):
+
+    def set_focus(self):
+        try:
+            self.figure.canvas.setFocus(Qt.OtherFocusReason)
+        except Exception as e:
+            pass
 
 
 class Interactor:
@@ -115,9 +124,7 @@ enamldef MPLContainer(Container): di:
 
     constraints = [
         vbox(
-            #keys,
             hbox(show_filename, supra, sub, load, spacer),
-            #hbox(guess, clear, spacer),
             hbox(clear, spacer),
             filename,
             canvas
@@ -150,6 +157,7 @@ enamldef MPLContainer(Container): di:
                         text = 'Plot'
                         triggered ::
                             presenter.load_analysis(loop_item)
+                            canvas.set_focus()
                     Action:
                         text = 'Delete'
                         triggered ::
@@ -164,19 +172,7 @@ enamldef MPLContainer(Container): di:
                                 items = di.analyzed_filenames[:]
                                 items.remove(loop_item)
                                 di.analyzed_filenames = items
-
-    #ToolButton: guess:
-    #    text = 'Guess'
-    #    popup_mode = 'instant'
-    #    Menu:
-    #        Action:
-    #            text = 'Peaks'
-    #            triggered ::
-    #                presenter.guess_peaks()
-    #        Action:
-    #            text = 'Valleys'
-    #            triggered ::
-    #                presenter.guess_valleys()
+                            canvas.set_focus()
 
     ToolButton: clear:
         text = 'Clear'
@@ -186,25 +182,30 @@ enamldef MPLContainer(Container): di:
                 text = 'All'
                 triggered ::
                     presenter.clear_points()
+                    canvas.set_focus()
             Action:
                 text = 'Peaks'
                 triggered::
                     presenter.clear_peaks()
+                    canvas.set_focus()
             Action:
                 text = 'Valleys'
                 triggered ::
                     presenter.clear_valleys()
-
+                    canvas.set_focus()
 
     PushButton: supra:
         text = 'All above threshold'
         clicked ::
             presenter.set_suprathreshold()
+            canvas.set_focus()
 
     PushButton: sub:
         text = 'All below threshold'
         clicked ::
             presenter.set_subthreshold()
+            canvas.set_focus()
+            print('setting focus')
 
     CheckBox: show_filename:
         checked = False
@@ -212,14 +213,15 @@ enamldef MPLContainer(Container): di:
 
     Label: filename:
         visible << show_filename.checked
-        text << '{} {} Hz'.format(getattr(presenter.model, 'id', ''), 
+        text << '{} {} Hz'.format(getattr(presenter.model, 'id', ''),
                                   getattr(presenter.model, 'freq', ''))
 
-    MPLCanvas: canvas:
+    ABRCanvas: canvas:
         figure << presenter.figure
         toolbar_visible = False
         initialized ::
             deferred_call(bind, figure, presenter)
+            deferred_call(self.set_focus)
 
 
 enamldef SerialWindow(MainWindow):
@@ -229,6 +231,12 @@ enamldef SerialWindow(MainWindow):
     initial_size = (600, 900)
     title = 'ABR batch mode'
     icon = main_icon
+
+    initialized ::
+        try:
+            presenter.load_next()
+        except Exception as e:
+            deferred_call(critical, None, 'Error', str(e))
 
     Container:
         constraints = [
