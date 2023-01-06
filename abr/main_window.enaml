@@ -74,6 +74,10 @@ class Interactor:
                 self.presenter.update_point()
             elif event.key == 's':
                 self.presenter.save()
+                if not self.presenter.batch_mode:
+                    information(None, 'Data', 'Analysis saved to file.')
+                elif (self.presenter.current_model + 1) == len(self.presenter.unprocessed):
+                    information(None, 'Data', 'No more datasets to analyze.')
             elif event.key == 'right':
                 self.presenter.move_selected_point(('zero_crossing', 1))
             elif event.key == 'left':
