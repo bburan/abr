@@ -1,3 +1,4 @@
+from functools import cached_property, lru_cache
 import glob
 import json
 import os.path
@@ -25,68 +26,100 @@ def get_filename(pathname, suffix='ABR average waveforms.csv'):
     raise IOError(f'Could not find average waveforms file for {pathname}')
 
 
-def load(base_directory, filter_settings=None, frequencies=None):
-    filename = get_filename(base_directory)
+@lru_cache(maxsize=64)
+def read_file(filename):
     with filename.open() as fh:
-        fh.readline() # frequency
-        fh.readline() # level
-        has_metadata = fh.readline().startswith('epoch_n')
+        # This supports a variable-length header where we may not have included
+        # some levels (e.g., epoch_n and epoch_reject_ratio).
+        header = {}
+        while True:
+            line = fh.readline()
+            if line.startswith('time'):
+                break
+            name, *keys = line.split(',')
+            header[name] = np.array(keys).astype('f')
+        data = pd.read_csv(fh, index_col=0, header=None)
 
-    if frequencies is not None and np.isscalar(frequencies):
-        frequencies = [frequencies]
-
-    if has_metadata:
-        data = pd.io.parsers.read_csv(filename, header=[0, 1, 2, 3], index_col=0).T
-        data = data.reset_index(['epoch_n', 'epoch_reject_ratio'], drop=True)
-        settings_file = get_filename(filename.parent, 'ABR processing settings.json')
-        fs = json.loads(settings_file.read_text())['actual_fs']
-    else:
-        data = pd.io.parsers.read_csv(filename, header=[0, 1], index_col=0).T
-        fs = np.mean(np.diff(data.columns.values)**-1)
-    if filter_settings is not None:
-        Wn = filter_settings['highpass'], filter_settings['lowpass']
-        N = filter_settings['order']
-        b, a = signal.iirfilter(N, Wn, fs=fs)
-        data_filt = signal.filtfilt(b, a, data.values, axis=-1)
-        data = pd.DataFrame(data_filt, columns=data.columns, index=data.index)
-
-    data.columns *= 1e3
-    waveforms = {}
-
-    for (frequency, level), w in data.iterrows():
-        frequency = float(frequency)
-        level = float(level)
-        if frequencies is not None:
-            if frequency not in frequencies:
-                continue
-        frequency = float(frequency)
-        level = float(level)
-        waveform = ABRWaveform(fs, w, level)
-        waveforms.setdefault(frequency, []).append(waveform)
-
-    series = []
-    for frequency, stack in waveforms.items():
-        s = ABRSeries(stack, frequency)
-        s.filename = filename
-        s.id = filename.parent.name
-        series.append(s)
-
-    return series
+    header = pd.MultiIndex.from_arrays(list(header.values()),
+                                       names=list(header.keys()))
+    data.index.name = 'time'
+    data.columns = header
+    return data.T
 
 
-def get_frequencies(filename):
-    data = pd.io.parsers.read_csv(filename, header=[0, 1], index_col=0).T
-    frequencies = np.unique(data.index.get_level_values('frequency'))
-    return frequencies.astype('float')
+class PSIDataset:
+
+    def __init__(self, filename):
+        filename = Path(filename)
+        self.filename = get_filename(filename)
+
+    @cached_property
+    def fs(self):
+        settings_file = get_filename(self.filename.parent, 'ABR processing settings.json')
+        if settings_file.exists():
+            fs = json.loads(settings_file.read_text())['actual_fs']
+        else:
+            fs = np.mean(np.diff(data.columns.values)**-1)
+        return fs
+
+    @cached_property
+    def data(self):
+        data = read_file(self.filename)
+        keep = ['frequency', 'level']
+        drop = [c for c in data.index.names if c not in keep]
+        return data.reset_index(drop, drop=True)
+
+    @cached_property
+    def frequencies(self):
+        return self.data.index.unique('frequency').values
+
+    def iter_frequencies(self):
+        for frequency in self.frequencies:
+            yield PSIFrequency(self, frequency)
 
 
-def find_all(dirname, frequencies=None):
+class PSIFrequency:
+
+    def __init__(self, parent, frequency):
+        self.parent = parent
+        self.frequency = frequency
+
+    @property
+    def filename(self):
+        return self.parent.filename
+
+    @property
+    def fs(self):
+        return self.parent.fs
+
+    def get_series(self, filter_settings=None):
+        data = self.parent.data.loc[self.frequency]
+        if filter_settings is not None:
+            Wn = filter_settings['highpass'], filter_settings['lowpass']
+            N = filter_settings['order']
+            b, a = signal.iirfilter(N, Wn, fs=self.fs)
+            data_filt = signal.filtfilt(b, a, data.values, axis=-1)
+            data = pd.DataFrame(data_filt, columns=data.columns, index=data.index)
+
+        waveforms = []
+        for level, w in data.iterrows():
+            level = float(level)
+            waveforms.append(ABRWaveform(self.fs, w, level))
+
+        series = ABRSeries(waveforms, self.frequency)
+        series.filename = self.parent.filename
+        series.id = self.parent.filename.parent.name
+        return series
+
+
+def iter_all(path, frequencies=None):
     results = []
-    for pathname in Path(dirname).glob('*abr*'):
-        if pathname.is_dir() :
-            filename = get_filename(pathname)
-            for frequency in get_frequencies(filename):
-                if frequencies is not None and frequency not in frequencies:
-                    continue
-                results.append((filename, frequency))
-    return results
+    for pathname in Path(path).glob('**/*abr_io'):
+        for fs in PSIDataset(pathname).iter_frequencies():
+            if frequencies is not None and fs.frequency not in frequencies:
+                continue
+            yield fs
+
+
+def load(filename):
+    yield from PSIDataset(filename).iter_frequencies()

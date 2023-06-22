@@ -133,8 +133,8 @@ class Parser(object):
         self._module_name = f'abr.parsers.{file_format}'
         self._module = importlib.import_module(self._module_name)
 
-    def load(self, filename, frequencies=None):
-        return self._module.load(filename, self._filter_settings, frequencies)
+    def load(self, fs):
+        return fs.get_series(self._filter_settings)
 
     def load_analysis(self, series, filename):
         freq, th, peaks = load_analysis(filename)
@@ -188,22 +188,18 @@ class Parser(object):
         with open(filename, 'w') as fh:
             fh.writelines(content)
 
-    def find_all(self, dirname, frequencies=None):
-        result = self._module.find_all(dirname, frequencies=frequencies)
-        if frequencies is not None:
-            if np.isscalar(frequencies):
-                frequencies = [frequencies]
-            result = [(p, f) for (p, f) in result if f in frequencies]
-        return result
+    def iter_all(self, path):
+        yield from self._module.iter_all(path)
 
-    def find_processed(self, dirname, frequencies=None):
-        return [(p, f) for p, f in self.find_all(dirname, frequencies) \
-                if self.get_save_filename(p, f).exists()]
+    def find_processed(self, path):
+        for ds in self.iter_all(path):
+            if self.get_save_filename(ds.filename, ds.frequency).exists():
+                yield ds
 
-    def find_unprocessed(self, dirname, frequencies=None):
-        # k is tuple of path, frequency
-        iterator = self.find_all(dirname, frequencies=frequencies)
-        return [k for k in iterator if not self.get_save_filename(*k).exists()]
+    def find_unprocessed(self, path):
+        for ds in self.iter_all(path):
+            if not self.get_save_filename(ds.filename, ds.frequency).exists():
+                yield ds
 
     def find_analyses(self, dirname, frequencies=None):
         analyzed = {}

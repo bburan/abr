@@ -238,11 +238,8 @@ enamldef SerialWindow(MainWindow):
     title = 'ABR batch mode'
     icon = main_icon
 
-    initialized ::
-        try:
-            presenter.load_next()
-        except Exception as e:
-            deferred_call(critical, None, 'Error', str(e))
+    closing ::
+        presenter.scan_stop()
 
     Container:
         constraints = [
@@ -253,10 +250,12 @@ enamldef SerialWindow(MainWindow):
         ]
 
         Label: label:
-            text = 'Progress (n={})'.format(len(presenter.unprocessed))
+            text << 'Progress (n={})'.format(presenter.n_unprocessed) \
+                if presenter.scan_complete \
+                else 'Scanning ... (n={})'.format(presenter.n_unprocessed)
         ProgressBar: progress:
             value << presenter.current_model
-            maximum << len(presenter.unprocessed)
+            maximum << len(presenter.unprocessed) if presenter.scan_complete else 0
             text_visible = True
 
         Notebook: notebook:

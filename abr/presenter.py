@@ -1,8 +1,12 @@
+import threading
+import queue
+
 import numpy as np
 import pandas as pd
 
 from atom.api import (Atom, Typed, Dict, List, Bool, Int, Float, Tuple,
                       Property, Value, set_default)
+from enaml.application import timed_call
 
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
@@ -83,7 +87,6 @@ class WaveformPresenter(Atom):
     scale = Property()
     normalized = Property()
     boxes = Dict()
-
 
     _current = Int()
     _toggle = Value()
@@ -281,20 +284,64 @@ class WaveformPresenter(Atom):
         self.update()
 
 
+def scan_worker(parser, paths, queue, stop):
+    for path in paths:
+        for ds in parser.find_unprocessed(path):
+            queue.put(('append', ds))
+            if stop.is_set():
+                break
+        if stop.is_set():
+            break
+    queue.put(('complete',))
+
+
 class SerialWaveformPresenter(WaveformPresenter):
 
     unprocessed = List()
+    n_unprocessed = Int(0)
+
     current_model = Int(-1)
     batch_mode = set_default(True)
 
-    def __init__(self, parser, latencies, unprocessed):
+    scan_paths = Value()
+    scan_queue = Value()
+    scan_stop_event = Value()
+    scan_complete = Bool(False)
+    scan_thread = Value()
+
+    def __init__(self, parser, latencies, paths):
         super().__init__(parser, latencies)
-        self.unprocessed = unprocessed
+        self.scan_paths = paths
+        self.scan_queue = queue.Queue()
+        self.scan_stop_event = threading.Event()
+        args = (self.parser, self.scan_paths, self.scan_queue, self.scan_stop_event)
+        self.scan_thread = threading.Thread(target=scan_worker, args=args)
+        self.scan_thread.start()
+        self.unprocessed = []
+        timed_call(100, self.scan_poll)
+
+    def scan_poll(self):
+        while True:
+            try:
+                mesg = self.scan_queue.get(block=False)
+                if mesg[0] == 'append':
+                    self.unprocessed.append(mesg[1])
+                elif mesg[0] == 'complete':
+                    self.scan_complete = True
+            except queue.Empty:
+                if not self.scan_complete:
+                    timed_call(100, self.scan_poll)
+                break
+        self.n_unprocessed = len(self.unprocessed)
+        if self.current_model < 0:
+            self.load_next()
+
+    def scan_stop(self):
+        self.scan_stop_event.set()
 
     def load_model(self):
-        filename, frequency = self.unprocessed[self.current_model]
-        model = self.parser.load(filename, frequencies=[frequency])[0]
-        self.load(model)
+        fs = self.unprocessed[self.current_model]
+        self.load(self.parser.load(fs))
 
     def load_prior(self):
         if self.current_model < 1:

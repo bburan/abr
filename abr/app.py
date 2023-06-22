@@ -114,37 +114,14 @@ def main_batch():
     parser = argparse.ArgumentParser("abr_batch")
     add_default_arguments(parser)
     parser.add_argument('dirnames', nargs='*')
-    parser.add_argument('--list', action='store_true')
     parser.add_argument('--skip-errors', action='store_true')
-    parser.add_argument('--frequencies', nargs='*', type=float)
-    parser.add_argument('--shuffle', action='store_true')
     options = parse_args(parser)
     parser = options['parser']
-
-    unprocessed = []
-    for dirname in options['dirnames']:
-        files = parser.find_unprocessed(dirname,
-                                        frequencies=options['frequencies'])
-        unprocessed.extend(files)
-
-    if options['shuffle']:
-        random.shuffle(unprocessed)
-
-    if len(unprocessed) == 0:
-        print('No files to process')
-        return
-
-    if options['list']:
-        counts = Counter(f for f, _ in unprocessed)
-        for filename, n in counts.items():
-            filename = filename.stem
-            print(f'{filename} ({n})')
-        return
 
     app = QtApplication()
     presenter = SerialWaveformPresenter(parser=parser,
                                         latencies=options['latencies'],
-                                        unprocessed=unprocessed)
+                                        paths=options['dirnames'])
     view = SerialWindow(presenter=presenter)
     view.show()
     app.start()
