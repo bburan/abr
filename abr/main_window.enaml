@@ -1,10 +1,16 @@
+import logging
+log = logging.getLogger(__name__)
+
 import os.path
 from pathlib import Path
 import urllib.request
 
 from enaml.application import deferred_call
 from enaml.core.api import Looper
-from enaml.layout.api import AreaLayout, hbox, DockBarLayout, InsertItem, InsertTab, spacer, TabLayout, vbox
+from enaml.layout.api import (
+    align, AreaLayout, hbox, DockBarLayout, InsertItem, InsertTab, spacer,
+    TabLayout, vbox
+)
 from enaml.qt.QtCore import Qt
 from enaml.stdlib.dialog_buttons import DialogButton
 from enaml.stdlib.message_box import critical, information, warning
@@ -45,8 +51,6 @@ class Interactor:
         for i, line_plot in enumerate(self.presenter.plots):
             if line_plot.plot == event.artist:
                 self.presenter.current = i
-                if not self.presenter.threshold_marked:
-                    self.presenter.set_threshold()
             for point, point_plot in line_plot.point_plots.items():
                 if point_plot.plot == event.artist:
                     self.selected_point = point
@@ -62,6 +66,7 @@ class Interactor:
             self.presenter.set_selected_point(event.xdata)
 
     def key_press(self, event):
+        log.info('Detected key press %s', event.key)
         try:
             if event.key == 'down':
                 self.presenter.current -= 1
@@ -95,16 +100,33 @@ class Interactor:
                 self.presenter.move_selected_point(('time', 1e-5))
             elif event.key == 'alt+left':
                 self.presenter.move_selected_point(('time', -1e-5))
+            elif event.key == 'shift+right':
+                self.presenter.move_selected_point(('time', 1e-6))
+            elif event.key == 'shift+left':
+                self.presenter.move_selected_point(('time', -1e-6))
             elif event.key == 'n':
                 self.presenter.normalized = not self.presenter.normalized
             elif event.key in ('1', '2', '3', '4', '5'):
                 self.presenter.toggle = int(event.key), Point.PEAK
             elif event.key in ('alt+1', 'alt+2', 'alt+3', 'alt+4', 'alt+5'):
                 self.presenter.toggle = int(event.key[-1]), Point.VALLEY
+            elif event.key in ('shift+1', 'shift+2', 'shift+3', 'shift+4', 'shift+5'):
+                self.presenter.toggle = int(event.key[-1]), Point.VALLEY
+            elif event.key in ('delete', 'backspace'):
+                self.presenter.toggle_selected_point_unscorable()
             elif event.key == 'pagedown':
                 self.presenter.load_next()
             elif event.key == 'pageup':
                 self.presenter.load_prior()
+            elif event.key == 'shift+up':
+                self.presenter.top += 0.01
+            elif event.key == 'shift+down':
+                self.presenter.top -= 0.01
+            elif event.key == 'alt+shift+up':
+                self.presenter.bottom += 0.01
+            elif event.key == 'alt+shift+down':
+                self.presenter.bottom -= 0.01
+
         except Exception as e:
             critical(None, 'Error', str(e))
 
@@ -117,17 +139,24 @@ def get_title(frequency, filename, show_filename):
         return '{} kHz'.format(frequency)
 
 
+def get_rater(filename):
+    rater = filename.stem.rsplit('-', 2)[1]
+    if rater.endswith('kHz'):
+        return 'Unknown'
+    return rater
+
+
 enamldef MPLContainer(Container): di:
 
     attr presenter
-    attr analyzed_filenames = []
 
     constraints = [
         vbox(
-            hbox(show_filename, supra, sub, spacer, clear, load, spacer),
+            hbox(show_filename, supra, sub, spacer, clear, unscorable, load, spacer),
             filename,
             canvas
         ),
+        align('v_center', show_filename, supra, sub, clear, unscorable, load),
         supra.width == sub.width,
         load.width == 200,
     ]
@@ -135,11 +164,12 @@ enamldef MPLContainer(Container): di:
     ToolButton: load:
         text = 'Load analysis'
         popup_mode = 'instant'
+        enabled << len(presenter.analyzed_filenames) > 0
         Menu:
             Looper: looper:
-                iterable << analyzed_filenames[:]
+                iterable << presenter.analyzed_filenames[:]
                 Menu:
-                    title << loop_item.stem
+                    title << get_rater(loop_item)
                     Action:
                         text = 'Plot'
                         triggered ::
@@ -155,10 +185,7 @@ enamldef MPLContainer(Container): di:
                             ]
                             result = warning(None, 'Delete', mesg, buttons)
                             if result.text == 'Yes':
-                                loop_item.unlink()
-                                items = di.analyzed_filenames[:]
-                                items.remove(loop_item)
-                                di.analyzed_filenames = items
+                                presenter.remove_analysis(loop_item)
                             canvas.set_focus()
 
     ToolButton: clear:
@@ -181,6 +208,22 @@ enamldef MPLContainer(Container): di:
                     presenter.clear_valleys()
                     canvas.set_focus()
 
+    ToolButton: unscorable:
+        text = 'Mark unscorable'
+        popup_mode = 'instant'
+        Menu:
+            Action:
+                text = 'All peaks at this level and lower'
+                triggered ::
+                    presenter.mark_unscorable('descending')
+                    canvas.set_focus()
+
+            Action:
+                text = 'All peaks at all levels'
+                triggered::
+                    presenter.mark_unscorable('all')
+                    canvas.set_focus()
+
     PushButton: supra:
         text = 'All above threshold'
         clicked ::
@@ -192,7 +235,6 @@ enamldef MPLContainer(Container): di:
         clicked ::
             presenter.set_subthreshold()
             canvas.set_focus()
-            print('setting focus')
 
     CheckBox: show_filename:
         checked = False
@@ -216,15 +258,32 @@ enamldef HelpContainer(Container):
         <h3>General interaction</h3>
         <dl>
             <dt>up/down arrow</dt> <dd>Select waveform</dd>
+            <dt>Mouse click</dt> <dd>Select waveform and/or peak</dd>
             <dt>n</dt> <dd>Toggle normalized mode</dd>
             <dt>+/-</dt> <dd>Adjust zoom</dd>
+            <dt>shift + up/down arrow</dt> <dd>Adjust top of waterfall stack up/down</dd>
+            <dt>alt + shift + up/down arrow</dt> <dd>Adjust bottom of waterfall stack up/down</dd>
+
             <dt>i</dt> <dd>Make initial guess for peaks/valleys</dd>
             <dt>u</dt> <dd>Update guess only for selected peak/valley</dd>
             <dt>t</dt> <dd>Set threshold</dd>
+            <dt>alt+up</dt> <dd>Mark all waveforms as below threshold</dd>
+            <dt>alt+down</dt> <dd>Mark all waveforms as above threshold</dd>
+
             <dt>number (e.g., 1, 2, 3, 4, 5)</dt> <dd>Select peak</dd>
             <dt>alt + number (e.g., 1, 2, 3, 4, 5)</dt> <dd>Select valley</dd>
+            <dt>shift + number (e.g., 1, 2, 3, 4, 5)</dt> <dd>Select valley.
+            This is the same as alt + number and is included for compatibility
+            with those who are familiar with the NCRAR version of the
+            peak-picking program.</dd>
             <dt>left/right arrow</dt> <dd>Move selected peak/valley (snap mode)</dd>
             <dt>alt + left/right arrow</dt> <dd>Move selected peak/valley (fine adjustment)</dd>
+            <dt>shift + left/right arrow</dt> <dd>Move selected peak/valley (ultrafine adjustment)</dd>
+            <dt>delete</dt> <dd>Mark point as unscoreable</dd>
+
+            <dt>pagedown</dt> <dd>Move to next waveform in batch mode (don't save current analysis)</dd>
+            <dt>pageup</dt> <dd>Move to previous waveform in batch mode (don't save current analysis)</dd>
+
             <dt>s</dt> <dd>Save analysis</dd>
         </dl>
         '''
@@ -271,25 +330,22 @@ enamldef SerialWindow(MainWindow):
                 HelpContainer:
                     pass
 
+
 enamldef MPLDockItem(DockItem):
 
     alias presenter: container.presenter
-    alias analyzed_filenames: container.analyzed_filenames
 
     MPLContainer: container:
         pass
 
 
-def add_dock_item(dock_area, model, path, presenter, analyzed_filenames):
+def add_dock_item(dock_area, model, presenter):
     items = dock_area.dock_items()
     n_items = len(items) - 1
     target = items[-1].name if n_items else ''
-    title = '{:.2f} kHz - {}'.format(model.freq, os.path.basename(path))
-    item = MPLDockItem(dock_area,
-                       name='dock_{}'.format(n_items),
-                       title=title,
-                       presenter=presenter,
-                       analyzed_filenames=analyzed_filenames)
+    title = f'{model.frequency * 1e-3:.2f} kHz - {model.parent.name}'
+    item = MPLDockItem(dock_area, name='dock_{}'.format(n_items), title=title,
+                       presenter=presenter)
     op = InsertTab(item=item.name, target=target)
     dock_area.update_layout(op)
 
@@ -297,16 +353,14 @@ def add_dock_item(dock_area, model, path, presenter, analyzed_filenames):
 def load_files(parser, latencies, filenames, dock_area):
     from abr.presenter import WaveformPresenter
     errors = []
-    for filename, frequencies in filenames:
+    for filename in filenames:
         try:
-            for model in parser.load(filename, frequencies):
-                analyzed_filenames = \
-                    parser.find_analyzed_files(model.filename, model.freq)
+            for fs in parser.iter_all(filename):
                 presenter = WaveformPresenter(parser, latencies)
-                add_dock_item(dock_area, model, filename, presenter,
-                              analyzed_filenames)
-                presenter.load(model)
+                add_dock_item(dock_area, fs, presenter)
+                presenter.load(fs)
         except Exception as e:
+            log.exception(e)
             errors.append(filename)
 
         if errors:
@@ -344,7 +398,7 @@ enamldef DNDWindow(MainWindow):
                     t = urllib.parse.unquote(t).strip()
                     fragments = urllib.parse.urlsplit(t)
                     path = Path(urllib.request.url2pathname(fragments.path))
-                    filenames.append((path, None))
+                    filenames.append(path)
                 load_files(parser, latencies, filenames, dock_area)
 
             DockItem:

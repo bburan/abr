@@ -48,7 +48,10 @@ class Settings(Atom):
         STORE.setValue('filter_ub', self.filter_ub)
 
     def _default_shuffle(self):
-        return bool(STORE.value('shuffle', 1))
+        return bool(STORE.value('shuffle', 0))
+
+    def _default_last_directory(self):
+        return STORE.value('last_directory', '')
 
     def _observe_shuffle(self, event):
         STORE.setValue('shuffle', int(self.shuffle))
@@ -64,6 +67,9 @@ class Settings(Atom):
 
     def _observe_waves(self, event):
         STORE.setValue('waves', self.waves)
+
+    def _observe_last_directory(self, event):
+        STORE.setValue('last_directory', self.last_directory)
 
     def get_default_args(self):
         args = ['--parser', self.parser]

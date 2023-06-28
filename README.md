@@ -71,3 +71,7 @@ The following keys can be used when analyzing a waveform:
         Indicate that all waveforms are above threshold.
 
 Some keys will repeat if you hold down the key, which may be useful when navigating through the waveforms or adjusting the location of a peak.
+
+# Attributions
+
+Code relating to marking points unscoreable and/or shifting waveforms up/down to ensure they don't run off the plot are adapted from work performed for the United States government and, therefore, are in the public domain. All other part of the code remain licensed under the BSD.

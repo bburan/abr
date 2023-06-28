@@ -96,11 +96,15 @@ class PointPlot(StylePlot):
             return self.TOGGLE
 
         # Fallback to this
-        style = self.PEAK if self.point.is_peak() else self.VALLEY
+        style = self.PEAK.copy() if self.point.is_peak() else self.VALLEY.copy()
+
         index = self.point.wave_number-1
         c = self.COLORS[self.point.wave_number-1]
         style['c'] = c
         style['markerfacecolor'] = c
+        if self.point.unscorable:
+            style['alpha'] = 0.5
+            style['markersize'] = 4
         return style
 
     def update_plot(self):

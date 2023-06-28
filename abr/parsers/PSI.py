@@ -10,6 +10,8 @@ from scipy import signal
 
 from abr.datatype import ABRWaveform, ABRSeries
 
+from .dataset import DataCollection, Dataset
+
 
 def get_filename(pathname, suffix='ABR average waveforms.csv'):
     if pathname.is_file():
@@ -43,11 +45,12 @@ def read_file(filename):
     header = pd.MultiIndex.from_arrays(list(header.values()),
                                        names=list(header.keys()))
     data.index.name = 'time'
+    data.index *= 1e3
     data.columns = header
     return data.T
 
 
-class PSIDataset:
+class PSIDataCollection(DataCollection):
 
     def __init__(self, filename):
         filename = Path(filename)
@@ -73,12 +76,16 @@ class PSIDataset:
     def frequencies(self):
         return self.data.index.unique('frequency').values
 
+    @property
+    def name(self):
+        return self.filename.parent.stem
+
     def iter_frequencies(self):
         for frequency in self.frequencies:
-            yield PSIFrequency(self, frequency)
+            yield PSIDataset(self, frequency)
 
 
-class PSIFrequency:
+class PSIDataset(Dataset):
 
     def __init__(self, parent, frequency):
         self.parent = parent
@@ -112,14 +119,11 @@ class PSIFrequency:
         return series
 
 
-def iter_all(path, frequencies=None):
+def iter_all(path):
     results = []
-    for pathname in Path(path).glob('**/*abr_io'):
-        for fs in PSIDataset(pathname).iter_frequencies():
-            if frequencies is not None and fs.frequency not in frequencies:
-                continue
-            yield fs
-
-
-def load(filename):
-    yield from PSIDataset(filename).iter_frequencies()
+    path = Path(path)
+    if path.stem.endswith('abr_io'):
+        yield from PSIDataCollection(path).iter_frequencies()
+    else:
+        for subpath in path.glob('**/*abr_io'):
+            yield from PSIDataCollection(subpath).iter_frequencies()

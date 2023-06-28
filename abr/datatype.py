@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from scipy import signal
 
-from atom.api import Atom, Int, Typed, Value
+from atom.api import Atom, Bool, Int, Typed, Value
 
 from .peakdetect import (generate_latencies_bound, generate_latencies_skewnorm,
                          guess, guess_iter, peak_iterator)
@@ -63,11 +63,23 @@ class ABRWaveform:
     def std(self, lb, ub):
         return self.stat(lb, ub, np.std)
 
-    def set_point(self, wave, ptype, index):
+    def set_point(self, wave, ptype, index=None, latency=None, unscorable=False):
+        # First, figure out index given requested latency
+        if index is None and latency is None:
+            raise ValueError('Must provide index or latency')
+        elif index is not None and latency is not None:
+            raise ValueError('Must provide either index or latency')
+        elif latency is not None:
+            index = np.searchsorted(self.x, latency)
+
+        # Now, create point if it does not exist
         if (wave, ptype) not in self.points:
             point = WaveformPoint(self, 0, wave, ptype)
             self.points[wave, ptype] = point
+
+        # Update the values on the point
         self.points[wave, ptype].index = int(index)
+        self.points[wave, ptype].unscorable = unscorable
 
     def clear_points(self):
         self.points = {}
@@ -104,6 +116,7 @@ class WaveformPoint(Atom):
     wave_number = Int()
     point_type = Typed(Point)
     iterator = Value()
+    unscorable = Bool(False)
 
     def __init__(self, parent, index, wave_number, point_type):
         # Order of setting attributes is important here
@@ -139,10 +152,14 @@ class WaveformPoint(Atom):
         latency = self.x
         if self.parent.is_subthreshold():
             return -np.abs(latency)
+        elif self.unscorable:
+            return -np.abs(latency)
         return latency
 
     @property
     def amplitude(self):
+        if self.unscorable:
+            return np.nan
         return self.parent.signal.iloc[self.index]
 
     def move(self, step):
@@ -209,3 +226,22 @@ class ABRSeries(object):
         for level, level_guess in level_guesses.items():
             waveform = self.get_level(level)
             waveform._set_points(level_guess, ptype)
+
+    def load_analysis(self, threshold, points):
+        if threshold is None:
+            threshold = np.nan
+        self.threshold = threshold
+        for j, waveform in enumerate(self.waveforms[::-1]):
+            analysis = points.iloc[j]
+            for i in range(1, 6):
+                try:
+                    p_latency = np.abs(analysis[f'P{i} Latency'])
+                    n_latency = np.abs(analysis[f'N{i} Latency'])
+                    p_amplitude = analysis[f'P{i} Amplitude']
+                    n_amplitude = analysis[f'N{i} Amplitude']
+                    p_unscorable = bool(np.isnan(p_amplitude))
+                    n_unscorable = bool(np.isnan(n_amplitude))
+                    waveform.set_point(i, Point.PEAK, latency=p_latency, unscorable=p_unscorable)
+                    waveform.set_point(i, Point.VALLEY, latency=n_latency, unscorable=n_unscorable)
+                except KeyError:
+                    pass

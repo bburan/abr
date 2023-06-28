@@ -1,3 +1,6 @@
+import logging
+logging.basicConfig(level=logging.INFO)
+
 import argparse
 from collections import Counter
 from pathlib import Path
@@ -99,11 +102,8 @@ def main_gui():
 
     app = QtApplication()
     view = DNDWindow(parser=options['parser'], latencies=options['latencies'])
-
-    filenames = [(Path(f), None) for f in options['filenames']]
-
     deferred_call(load_files, options['parser'], options['latencies'],
-                  filenames, view.find('dock_area'))
+                  options['filenames'], view.find('dock_area'))
 
     view.show()
     app.start()

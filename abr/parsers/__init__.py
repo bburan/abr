@@ -29,6 +29,7 @@ import time
 import pandas as pd
 import numpy as np
 
+import abr
 from ..datatype import Point
 
 P_ANALYZER = re.compile('.*kHz(?:-(\w+))?-analyzed.txt')
@@ -138,10 +139,7 @@ class Parser(object):
 
     def load_analysis(self, series, filename):
         freq, th, peaks = load_analysis(filename)
-        series.threshold = th
-        p_latencies, n_latencies = parse_peaks(peaks, th)
-        series._set_points(p_latencies, Point.PEAK)
-        series._set_points(n_latencies, Point.VALLEY)
+        series.load_analysis(th, peaks)
 
     def find_analyzed_files(self, filename, frequency):
         frequency = round(frequency * 1e-3, 8)
@@ -182,7 +180,8 @@ class Parser(object):
                                  frequency=model.freq*1e-3,
                                  filter_history=filter_history,
                                  columns=columns,
-                                 spreadsheet=spreadsheet)
+                                 spreadsheet=spreadsheet,
+                                 version=abr.__version__)
 
         filename = self.get_save_filename(model.filename, model.freq)
         with open(filename, 'w') as fh:
@@ -227,7 +226,9 @@ CONTENT = '''
 Threshold (dB SPL): {threshold:.2f}
 Frequency (kHz): {frequency:.2f}
 Filter history (zpk format): {filter_history}
-NOTE: Negative latencies indicate no peak
+file_format_version: 0.0.2
+code_version: {version}
+NOTE: Negative latencies indicate no peak. NaN for amplitudes indicate peak was unscorable.
 {columns}
 {spreadsheet}
 '''.strip()
