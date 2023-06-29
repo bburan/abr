@@ -40,38 +40,8 @@ The amplitude and latency of each point are saved along with the threshold of th
 
 The current waveform is displayed as a thick, black line.  Once a threshold is specified, subthreshold waveforms are indicated by a dashed line.  The selected point is indicated by a white square.  Negativities are indicated by triangles, positivities as squares.  Red is P1/N1, yellow is P2/N2, green is P3/N3, light blue is P4/N4, and dark blue is P5/N5.
 
-The following keys can be used when analyzing a waveform:
-
-    Up/Down arrows
-        Select previous/next waveform in the series
-    Right/Left arrows
-        Move a toggled peak left or right along the waveform.  Movement of the
-        peak will "snap" to estimated peaks in the waveform.  To adjust the peak
-        in fine increments, hold down the alt key simultaneously.
-    Number keys 1-5
-        Select the corresponding peak on the current waveform.  To select N1-5,
-        hold down alt while pressing the corresponding number.
-    I
-        Estimates P1-5 for all waveforms on the first press. N1-5 for all
-        waveforms on the second press. After that, nothing happens.
-    U
-        Updates guess for corresponding P or N of successive waveforms based on
-        position of currently toggled P or N.
-    N
-        Toggles normalized view of waveform.
-    +/- keys
-        Increases/decreases scaling factor of waveform.
-    S
-        Saves amplitude and latency of peaks.
-    T
-        Set threshold to current waveform.
-    Alt+Up
-        Indicate that all waveforms are below threshold.
-    Alt+Down
-        Indicate that all waveforms are above threshold.
-
-Some keys will repeat if you hold down the key, which may be useful when navigating through the waveforms or adjusting the location of a peak.
+Instructions for using the program are included in the user interface.
 
 # Attributions
 
-Code relating to marking points unscoreable and/or shifting waveforms up/down to ensure they don't run off the plot are adapted from work performed for the United States government and, therefore, are in the public domain. All other part of the code remain licensed under the BSD.
+Code relating to marking points unscoreable and/or shifting waveforms up/down to ensure they don't run off the plot are adapted from work performed for the United States government and, therefore, are in the public domain. All other part of the code remain licensed under the BSD 3-clause.
