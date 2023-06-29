@@ -14,7 +14,7 @@ maintainers = [
 ]
 dependencies = [
 	"atom",
-	"enaml[qt5-pyqt]",
+	"enaml[qt5-pyside]",
 	"numpy",
 	"scipy",
 	"pandas",
