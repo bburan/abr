@@ -11,9 +11,11 @@ Individal research groups have also adapted the program to work with their own f
 
 ## Installing
 
-The simplest way to get started is to download the [Anaconda Python Distribution](https://www.anaconda.com/distribution/). Once installed, you will have new programs available in your start menu. Open `Anaconda Prompt` and type `conda install -c bburan abr`. On windows, this will download the software and add a new shortcut to your start menu called `ABR analysis` which can be used to launch the program.
+The simplest way to get started is to download the [Anaconda Python Distribution](https://www.anaconda.com/distribution/). Once installed, you will have new programs available in your start menu. One of these is called `Anaconda Prompt`. Open this program and type `pip install abr`.
 
-This program also works on Mac OS and Linux, but I do not have specific instructions for getting started on these platforms yet. Please give me a nudge if you need help with this and I can help you get started.
+## Running the program
+
+Open the `Anaconda Prompt` and type `abr`.
 
 ## Programs available
 
