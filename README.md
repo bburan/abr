@@ -11,11 +11,18 @@ Individal research groups have also adapted the program to work with their own f
 
 ## Installing
 
-The simplest way to get started is to download the [Anaconda Python Distribution](https://www.anaconda.com/distribution/). Once installed, you will have new programs available in your start menu. One of these is called `Anaconda Prompt`. Open this program and type `pip install abr`.
+The simplest way to get started is to download the [Anaconda Python Distribution](https://www.anaconda.com/distribution/). Once installed, you will have new programs available in your start menu. One of these is called `Anaconda Prompt`. Open the `Anaconda Prompt` and you will get a command window. Type the following sequence of commands:
+
+  conda create -n abr python=3.10
+  conda activate abr
+  pip install abr
 
 ## Running the program
 
-Open the `Anaconda Prompt` and type `abr`.
+Open the `Anaconda Prompt` and type:
+
+  conda activate abr
+  abr
 
 ## Programs available
 
