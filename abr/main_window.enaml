@@ -66,7 +66,7 @@ class Interactor:
             self.presenter.set_selected_point(event.xdata)
 
     def key_press(self, event):
-        log.info('Detected key press %s', event.key)
+        log.debug('Detected key press %s', event.key)
         try:
             if event.key == 'down':
                 self.presenter.current -= 1
