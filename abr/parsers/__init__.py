@@ -58,7 +58,7 @@ def filter_string(waveform):
 
 
 def load_analysis(fname):
-    th_match = re.compile('Threshold \(dB SPL\): ([\w.]+)')
+    th_match = re.compile('Threshold \(dB SPL\): ([\w.-]+)')
     freq_match = re.compile('Frequency \(kHz\): ([\d.]+)')
     with open(fname) as fh:
         text = fh.readline()
