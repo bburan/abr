@@ -279,7 +279,7 @@ enamldef HelpContainer(Container):
             <dt>left/right arrow</dt> <dd>Move selected peak/valley (snap mode)</dd>
             <dt>alt + left/right arrow</dt> <dd>Move selected peak/valley (fine adjustment)</dd>
             <dt>shift + left/right arrow</dt> <dd>Move selected peak/valley (ultrafine adjustment)</dd>
-            <dt>delete</dt> <dd>Mark point as unscoreable</dd>
+            <dt>delete</dt> <dd>Toggle point as unscoreable</dd>
 
             <dt>pagedown</dt> <dd>Move to next waveform in batch mode (don't save current analysis)</dd>
             <dt>pageup</dt> <dd>Move to previous waveform in batch mode (don't save current analysis)</dd>
