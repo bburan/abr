@@ -24,6 +24,11 @@ Open the `Anaconda Prompt` and type:
     conda activate abr
     abr
 
+## Updating the program
+
+    conda activate abr
+    pip install --upgrade abr
+
 ## Programs available
 
 There are two main interfaces to the ABR analysis program. The first is the basic interface where you manually drag files from your file browser and drop them on the window. You can drag one file or multiple files. Each file will be opened in a separate tab. The second interface is an automatic one that will loop through all unprocessed ABR files found in a folder and present each file to you individually for analysis. Once you save the analysis, it will immediately move to the next file.
