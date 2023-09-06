@@ -63,7 +63,8 @@ class Settings(Atom):
         STORE.setValue('filter_data', int(self.filter_data))
 
     def _default_waves(self):
-        return STORE.value('waves', [1, 2, 3, 4, 5])
+        result = STORE.value('waves', [1, 2, 3, 4, 5])
+        return [int(r) for r in result]
 
     def _observe_waves(self, event):
         STORE.setValue('waves', self.waves)
@@ -162,13 +163,15 @@ enamldef LaunchWindow(MainWindow):
                     checked << loop_item in settings.waves
                     checked ::
                         if checked:
-                            waves = settings.waves[:]
-                            waves.append(loop_item)
-                            settings.waves = waves
+                            if loop_item not in settings.waves:
+                                waves = settings.waves[:]
+                                waves.append(loop_item)
+                                settings.waves = sorted(waves)
                         else:
-                            waves = settings.waves[:]
-                            waves.remove(loop_item)
-                            settings.waves = waves
+                            if loop_item in settings.waves:
+                                waves = settings.waves[:]
+                                waves.remove(loop_item)
+                                settings.waves = sorted(waves)
 
         CheckBox: do_filter:
             text = 'Filter?'
