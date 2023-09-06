@@ -64,7 +64,7 @@ class Settings(Atom):
 
     def _default_waves(self):
         result = STORE.value('waves', [1, 2, 3, 4, 5])
-        return [int(r) for r in result]
+        return [int(r) for r in  sorted(set(result))]
 
     def _observe_waves(self, event):
         STORE.setValue('waves', self.waves)
