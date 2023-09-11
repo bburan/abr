@@ -14,7 +14,7 @@ maintainers = [
 ]
 dependencies = [
 	"atom",
-	"enaml[qt5-pyside]",
+	"enaml[qt6-pyside]",
 	"numpy",
 	"scipy",
 	"pandas",
@@ -33,10 +33,10 @@ documentation = "https://github.com/bburan/abr"
 repository = "https://github.com/bburan/abr"
 
 [project.scripts]
-abr = "abr.app:main_launcher"
-abr-gui = "abr.app:main_gui"
-abr-batch = "abr.app:main_batch"
-abr-compare = "abr.app:main_compare"
+abr = "abr.main:main"
+abr-gui = "abr.main:main_gui"
+abr-batch = "abr.main:main_batch"
+abr-compare = "abr.main:main_compare"
 
 [build-system]
 requires = ["setuptools>=61.2", "wheel", "setuptools_scm[toml]>=3.4.3"]

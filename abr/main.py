@@ -84,7 +84,7 @@ def parse_args(parser, waves=True):
     return new_options
 
 
-def main_launcher():
+def main():
     app = QtApplication()
     window = LaunchWindow()
     window.show()
