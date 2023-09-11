@@ -1,3 +1,4 @@
+# Use https://www.xiconeditor.com to convert to ico
 import matplotlib.pyplot as plt
 import matplotlib as mp
 import numpy as np
