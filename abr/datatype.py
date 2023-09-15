@@ -98,7 +98,7 @@ class ABRWaveform:
         for wave, wave_guess in guesses.iterrows():
             index = wave_guess.get('index', np.nan)
             if not np.isfinite(index):
-                index = np.searchsorted(self.x , wave_guess['x'])
+                index = np.abs(self.x - wave_guess['x']).argmin()
                 index = np.clip(index, 0, len(self.x)-1)
             else:
                 index = int(index)
