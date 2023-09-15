@@ -139,16 +139,11 @@ def get_title(frequency, filename, show_filename):
         return '{} kHz'.format(frequency)
 
 
-def get_rater(filename):
-    rater = filename.stem.rsplit('-', 2)[1]
-    if rater.endswith('kHz'):
-        return 'Unknown'
-    return rater
-
-
 enamldef MPLContainer(Container): di:
 
     attr presenter
+    attr interactive = True
+    enabled << interactive
 
     constraints = [
         vbox(
@@ -164,29 +159,15 @@ enamldef MPLContainer(Container): di:
     ToolButton: load:
         text = 'Load analysis'
         popup_mode = 'instant'
-        enabled << len(presenter.analyzed_filenames) > 0
+        enabled << len(presenter.raters) > 0
         Menu:
             Looper: looper:
-                iterable << presenter.analyzed_filenames[:]
-                Menu:
-                    title << get_rater(loop_item)
-                    Action:
-                        text = 'Plot'
-                        triggered ::
-                            presenter.load_analysis(loop_item)
-                            canvas.set_focus()
-                    Action:
-                        text = 'Delete'
-                        triggered ::
-                            mesg = 'Are you sure you want to remove this file?'
-                            buttons = [
-                                DialogButton('Yes', 'accept'),
-                                DialogButton('No', 'reject'),
-                            ]
-                            result = warning(None, 'Delete', mesg, buttons)
-                            if result.text == 'Yes':
-                                presenter.remove_analysis(loop_item)
-                            canvas.set_focus()
+                iterable << presenter.raters[:]
+                Action:
+                    text = f'Plot {loop_item}'
+                    triggered ::
+                        presenter.load_analysis(loop_item)
+                        canvas.set_focus()
 
     ToolButton: clear:
         text = 'Clear'
@@ -249,8 +230,10 @@ enamldef MPLContainer(Container): di:
         figure << presenter.figure
         toolbar_visible = False
         initialized ::
-            deferred_call(bind, figure, presenter)
-            deferred_call(self.set_focus)
+            if interactive:
+                deferred_call(bind, figure, presenter)
+                deferred_call(self.set_focus)
+
 
 enamldef HelpContainer(Container):
     Html:
@@ -339,6 +322,12 @@ enamldef MPLDockItem(DockItem):
         pass
 
 
+def fmt_freq(x):
+    if x == 0:
+        return 'click'
+    return f'{x * 1e-3:.2f} kHz'
+
+
 def add_dock_item(dock_area, model, presenter):
     items = dock_area.dock_items()
     n_items = len(items) - 1
@@ -411,72 +400,3 @@ enamldef DNDWindow(MainWindow):
 
 def mpl_connect(figure, event, handler):
     figure.canvas.mpl_connect(event, handler)
-
-
-enamldef CompareWindow(MainWindow):
-
-    attr compare
-    attr parser
-
-    initial_size = (1000, 600)
-    icon = main_icon
-
-    initialized ::
-        compare.observe('selected', selected_changed)
-
-    func selected_changed(event):
-        load_files(parser, {}, event['value'], dock_area)
-
-    Container:
-
-        constraints = [
-            hbox(
-                vbox(
-                    hbox(x_label, x_select),
-                    hbox(y_label, y_select),
-                    hbox(d_label, d_checkbox),
-                    hbox(j_label, j_checkbox),
-                    canvas,
-                ),
-                dock_area
-            ),
-            x_label.width == y_label.width,
-            x_label.width == d_label.width,
-            x_label.width == j_label.width,
-            x_select.width == y_select.width
-        ]
-
-        Label: x_label:
-            text = 'X'
-
-        ObjectCombo: x_select:
-            items << list(compare.data.columns)
-            selected := compare.x_column
-
-        Label: y_label:
-            text = 'Y'
-
-        ObjectCombo: y_select:
-            items << list(compare.data.columns)
-            selected := compare.y_column
-
-        Label: d_label:
-            text = 'Plot as difference'
-
-        CheckBox: d_checkbox:
-            checked := compare.as_difference
-
-        Label: j_label:
-            text = 'Jitter data'
-
-        CheckBox: j_checkbox:
-            checked := compare.jitter
-
-        MPLCanvas: canvas:
-            figure << compare.figure
-            initialized ::
-                deferred_call(mpl_connect, compare.figure, 'pick_event',
-                              compare.pick_handler)
-
-        DockArea: dock_area:
-            name = 'dock_area'

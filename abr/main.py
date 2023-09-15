@@ -1,28 +1,18 @@
-import logging
-logging.basicConfig(level=logging.INFO)
-
 import argparse
-from collections import Counter
-from pathlib import Path
 
-from matplotlib import pylab as pl
-from numpy import random
-import pandas as pd
-from scipy import stats
-
-from atom.api import Bool, Typed, Str
 import enaml
 from enaml.application import deferred_call
-from enaml.core.api import d_, Declarative
 from enaml.qt.qt_application import QtApplication
+from scipy import stats
 
 with enaml.imports():
     from abr.launch_window import LaunchWindow
-    from abr.main_window import (CompareWindow, DNDWindow, load_files,
-                                 SerialWindow)
+    from abr.main_window import (DNDWindow, load_files, SerialWindow)
+    from abr.compare_window import CompareWindow
     from abr.presenter import SerialWaveformPresenter, WaveformPresenter
 
 
+from abr.compare import Compare
 from abr.parsers import Parser
 
 
@@ -128,81 +118,24 @@ def main_batch():
     app.stop()
 
 
-class Compare(Declarative):
-
-    data = Typed(pd.DataFrame)
-    x_column = d_(Str())
-    y_column = d_(Str())
-    as_difference = d_(Bool(True))
-    jitter = d_(Bool(True))
-    axes = Typed(pl.Axes)
-    figure = Typed(pl.Figure)
-    selected = Typed(list)
-
-    def _default_figure(self):
-        return pl.Figure()
-
-    def _default_axes(self):
-        return self.figure.add_subplot(111)
-
-    def _observe_data(self, event):
-        self._update_plot()
-
-    def _observe_x_column(self, event):
-        self._update_plot()
-
-    def _observe_y_column(self, event):
-        self._update_plot()
-
-    def _observe_as_difference(self, event):
-        self._update_plot()
-
-    def _observe_jitter(self, event):
-        self._update_plot()
-
-    def _default_x_column(self):
-        return self.data.columns[0]
-
-    def _default_y_column(self):
-        i = 1 if (len(self.data.columns) > 1) else 0
-        return self.data.columns[i]
-
-    def _update_plot(self):
-        x = self.data[self.x_column].copy()
-        y = self.data[self.y_column].copy()
-        if self.as_difference:
-            y -= x
-        if self.jitter:
-            x += np.random.uniform(-1, 1, len(x))
-            y += np.random.uniform(-1, 1, len(x))
-
-        self.axes.clear()
-        self.axes.plot(x, y, 'ko', picker=4, mec='w', mew=1)
-        if self.figure.canvas is not None:
-            self.figure.canvas.draw()
-
-    def pick_handler(self, event):
-        rows = self.data.iloc[event.ind]
-        files = list(rows.index.get_level_values('raw_file'))
-        frequencies = list(rows.index.get_level_values('frequency'))
-        self.selected = list(zip(files, frequencies))
-
-
 def main_compare():
-    parser = argparse.ArgumentParser("abr_compare")
-    add_default_arguments(parser, waves=False)
+    parser = argparse.ArgumentParser("abr-compare")
+    add_default_arguments(parser)
     parser.add_argument('directory')
-    options = parse_args(parser, waves=False)
+    options = parse_args(parser)
 
-    data = options['parser'].load_analyses(options['directory'])
-    data = data.reset_index(['analyzed_file'], drop=True).unstack('user')
-    data = data.sort_index()
-
-    figure, axes = pl.subplots(1, 1)
-    compare = Compare(data=data)
+    presenter_a = WaveformPresenter(latencies=options['latencies'], parser=options['parser'], interactive=False)
+    presenter_b = WaveformPresenter(latencies=options['latencies'], parser=options['parser'], interactive=False)
+    presenter_c = WaveformPresenter(latencies=options['latencies'], parser=options['parser'])
 
     app = QtApplication()
-    view = CompareWindow(parser=options['parser'], compare=compare)
+    compare = Compare(options['parser'], options['directory'])
+    view = CompareWindow(compare=compare,
+                         rater=options['parser']._user,
+                         presenter_a=presenter_a,
+                         presenter_b=presenter_b,
+                         presenter_c=presenter_c,
+                         )
     view.show()
     app.start()
     app.stop()

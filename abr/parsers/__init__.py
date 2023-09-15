@@ -32,12 +32,6 @@ import numpy as np
 import abr
 from ..datatype import Point
 
-P_ANALYZER = re.compile('.*kHz(?:-(\w+))?-analyzed.txt')
-
-
-def get_analyzer(filename):
-    return P_ANALYZER.match(filename.name).group(1)
-
 
 def waveform_string(waveform):
     data = [f'{waveform.level:.2f}']
@@ -137,19 +131,6 @@ class Parser(object):
     def load(self, fs):
         return fs.get_series(self._filter_settings)
 
-    def load_analysis(self, series, filename):
-        freq, th, peaks = load_analysis(filename)
-        series.load_analysis(th, peaks)
-
-    def find_analyzed_files(self, filename, frequency):
-        frequency = round(frequency * 1e-3, 8)
-        glob_pattern = self.filename_template.format(
-            filename=filename.with_suffix(''),
-            frequency=frequency,
-            user='*')
-        path = Path(glob_pattern)
-        return list(path.parent.glob(path.name))
-
     def get_save_filename(self, filename, frequency):
         # Round frequency to nearest 8 places to minimize floating-point
         # errors.
@@ -200,26 +181,36 @@ class Parser(object):
             if not self.get_save_filename(ds.filename, ds.frequency).exists():
                 yield ds
 
-    def find_analyses(self, dirname, frequencies=None):
+    def find_analyses(self, study_directory):
         analyzed = {}
-        for p, f in self.find_all(dirname, frequencies):
-            analyzed[p, f] = self.find_analyzed_files(p, f)
+        for ds in self.iter_all(study_directory):
+            analyzed[ds] = ds.find_analyzed_files()
         return analyzed
 
-    def load_analyses(self, dirname, frequencies=None):
-        analyzed = self.find_analyses(dirname, frequencies)
+    def load_analyses(self, study_directory):
         keys = []
         thresholds = []
-        for (raw_file, frequency), analyzed_files in analyzed.items():
-            for analyzed_file in analyzed_files:
-                user = get_analyzer(analyzed_file)
-                keys.append((raw_file, frequency, analyzed_file, user))
-                _, threshold, _ = load_analysis(analyzed_file)
-                thresholds.append(threshold)
+        waves = []
+        analyses = self.find_analyses(study_directory)
 
-        cols = ['raw_file', 'frequency', 'analyzed_file', 'user']
-        index = pd.MultiIndex.from_tuples(keys, names=cols)
-        return pd.Series(thresholds, index=index)
+        for ds, analyzed_filenames in analyses.items():
+            for a in analyzed_filenames:
+                _, th, w = load_analysis(a)
+                parts = a.stem.split('-')
+                if parts[-2].endswith('kHz'):
+                    analyzer = 'Unknown'
+                else:
+                    analyzer = parts[-2]
+
+                keys.append((ds, analyzer))
+                thresholds.append(th)
+                waves.append(w)
+
+        names = ['dataset', 'analyzer']
+        index = pd.MultiIndex.from_tuples(keys, names=names)
+        thresholds = pd.Series(thresholds, index=index, name='thresholds').reset_index()
+        waves = pd.concat(waves, keys=keys, names=names).reset_index()
+        return thresholds, waves
 
 
 CONTENT = '''

@@ -110,6 +110,21 @@ class Settings(Atom):
             mesg = 'No unrated ABR experiments found in {}'.format(directory)
             information(None, 'No data', mesg)
 
+    def launch_compare(self):
+        directory = FileDialogEx.get_existing_directory(current_path=self.last_directory)
+        if not directory:
+            return
+
+        self.last_directory = directory
+        args = ['abr-compare']
+        args.append(directory)
+        args.extend(self.get_default_args())
+        result = subprocess.check_output(args)
+        if result.decode().strip() == 'No files to process':
+            mesg = 'No unrated ABR experiments found in {}'.format(directory)
+            information(None, 'No data', mesg)
+
+
 
 enamldef LaunchWindow(MainWindow):
 
@@ -194,7 +209,7 @@ enamldef LaunchWindow(MainWindow):
             value := settings.filter_ub
 
         PushButton: b_basic:
-            text = 'Launch basic'
+            text = 'Basic mode'
             enabled << bool(settings.rater)
             clicked ::
                 settings.launch_basic()
@@ -204,6 +219,12 @@ enamldef LaunchWindow(MainWindow):
             enabled << bool(settings.rater)
             clicked ::
                 settings.launch_batch()
+
+        PushButton: b_review:
+            text = 'Compare raters'
+            enabled << bool(settings.rater)
+            clicked ::
+                settings.launch_compare()
 
         CheckBox: shuffle:
             text = 'Shuffle?'

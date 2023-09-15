@@ -1,0 +1,204 @@
+import pickle
+
+from enaml.application import deferred_call
+from enaml.layout.api import (align, AreaLayout, DockBarLayout, grid, hbox,
+                              HSplitLayout, vbox)
+
+from enaml.stdlib.message_box import question
+from enaml.widgets.api import Action, Container, DockArea, DockItem, Label, MainWindow, Menu, MenuBar, ObjectCombo
+
+from abr import main_icon
+from abr.util import config_path
+from abr.main_window import ABRCanvas, fmt_freq, mpl_connect, MPLContainer
+
+
+def default_layout():
+    return AreaLayout(
+        HSplitLayout('rater_a', 'rater_b', sizes=[1, 1]),
+        dock_bars=[
+            DockBarLayout('compare_raters', position='left'),
+            DockBarLayout('rater_c', position='right')
+        ]
+    )
+
+
+def default_size():
+    return (1000, 800)
+
+
+def load_layout(window, dock_area):
+    layout_file = config_path() / 'compare.layout'
+    if layout_file.exists():
+        with layout_file.open('rb') as fh:
+            dock_area.layout = pickle.load(fh)
+            geometry = pickle.load(fh)
+            deferred_call(window.set_geometry, geometry)
+    else:
+        window.set_size(default_size())
+        dock_area.layout = default_layout()
+
+
+enamldef CompareWindow(MainWindow): window:
+
+    attr compare
+    attr rater
+    attr plot_title = 'Please select a point to load'
+
+    alias presenter_a: rater_a_plot.presenter
+    alias presenter_b: rater_b_plot.presenter
+    alias presenter_c: rater_c_plot.presenter
+
+    title << 'ABR compare :: {}'.format(plot_title)
+    initial_size = default_size()
+    icon = main_icon
+
+    initialized ::
+        compare.observe('selected_point', selected_changed)
+        load_layout(window, dock_area)
+
+    MenuBar:
+        Menu:
+            title = '&Layout'
+            Action:
+                text = 'Save layout\tCtrl+S'
+                triggered ::
+                    layout_file = config_path() / 'compare.layout'
+                    layout = dock_area.save_layout()
+                    geometry = window.geometry()
+                    layout_file.parent.mkdir(exist_ok=True, parents=True)
+                    with layout_file.open('wb') as fh:
+                        pickle.dump(layout, fh)
+                        pickle.dump(geometry, fh)
+            Action:
+                text = 'Reset layout\tCtrl+R'
+                triggered ::
+                    load_layout(window, dock_area)
+
+
+    func selected_changed(event):
+        if compare.selected_point:
+            dataset, wave_id = compare.selected_point
+
+            update_model = False
+            update_selection = True
+
+            if presenter_a.dataset is None or \
+                    presenter_a.dataset != dataset:
+                update_model = True
+
+                if presenter_c.modified:
+                    mesg = 'Changes to the analysis are not saved. Discard these changes?'
+                    result = question(self, 'Analysis not saved', mesg)
+                    if result.text == 'No':
+                        update_model = False
+                        update_selection = False
+
+            if update_model:
+                presenter_a.load(dataset)
+                presenter_a.load_analysis(compare.rater_x)
+                presenter_b.load(dataset)
+                presenter_b.load_analysis(compare.rater_y)
+                presenter_c.load(dataset)
+                window.plot_title = f'{dataset.filename} {fmt_freq(dataset.frequency)}'
+
+            if update_selection and wave_id is not None:
+                point = compare.selected_feature.split(' ')[0]
+                presenter_a.select_waveform(wave_id)
+                presenter_a.select_point(point)
+                presenter_b.select_waveform(wave_id)
+                presenter_b.select_point(point)
+
+    Container:
+        padding = 0
+
+        DockArea: dock_area:
+            layout = default_layout()
+
+            DockItem:
+                closable = False
+                name = 'compare_raters'
+                title = 'Compare'
+
+                Container:
+                    layout_constraints => ():
+                        first_line = [show_label, feature, for_label, x_select, and1_label, y_select]
+                        second_line = [plotas_label, plot_mode, and2_label, jitter_mode]
+                        layout = vbox(
+                            hbox(*first_line),
+                            hbox(*second_line),
+                            canvas
+                        )
+                        return [
+                            layout,
+                            align('v_center', *first_line),
+                            align('v_center', *second_line),
+                            x_select.width == y_select.width,
+                        ]
+
+
+                    ObjectCombo: feature:
+                        items << compare.available_features
+                        selected := compare.selected_feature
+
+                    Label: show_label:
+                        text = 'Show'
+
+                    Label: for_label:
+                        text = 'for rater'
+
+                    Label: and1_label:
+                        text = 'and'
+
+                    ObjectCombo: x_select:
+                        items << compare.available_raters
+                        selected := compare.rater_x
+
+                    ObjectCombo: y_select:
+                        items << compare.available_raters
+                        selected := compare.rater_y
+
+                    Label: plotas_label:
+                        text = 'Plot as'
+
+                    ObjectCombo: plot_mode:
+                        items << ['actual values', 'difference between raters']
+                        selected ::
+                            compare.as_difference = not(selected == 'actual values')
+
+                    Label: and2_label:
+                        text = 'and'
+
+                    ObjectCombo: jitter_mode:
+                        items << ["don't jitter data", "jitter data"]
+                        selected ::
+                            compare.jitter = selected == 'jitter data'
+
+                    ABRCanvas: canvas:
+                        figure << compare.figure
+                        initialized ::
+                            deferred_call(mpl_connect, compare.figure, 'button_press_event',
+                                        compare.button_press_event)
+
+            DockItem:
+                closable = False
+                name = 'rater_a'
+                title << 'Rater {} (view-only)'.format(compare.rater_x)
+
+                MPLContainer: rater_a_plot:
+                    interactive = False
+
+            DockItem:
+                closable = False
+                name = 'rater_b'
+                title << 'Rater {} (view-only)'.format(compare.rater_y)
+
+                MPLContainer: rater_b_plot:
+                    interactive = False
+
+            DockItem:
+                closable = False
+                name = 'rater_c'
+                title = 'Rater {} (editable)'.format(rater)
+
+                MPLContainer: rater_c_plot:
+                    pass

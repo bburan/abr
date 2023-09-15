@@ -87,7 +87,7 @@ def plot_model(axes, model):
 class WaveformPresenter(Atom):
 
     figure = Typed(Figure, {})
-    analyzed_filenames = List()
+    raters = List()
 
     axes = Typed(Axes)
     dataset = Typed(Dataset)
@@ -114,18 +114,21 @@ class WaveformPresenter(Atom):
     latencies = Dict()
 
     batch_mode = Bool(False)
+    interactive = Bool(True)
+    modified = Bool(False)
 
     def _default_axes(self):
         axes = self.figure.add_axes([0.1, 0.1, 0.8, 0.8])
         return axes
 
-    def __init__(self, parser, latencies):
+    def __init__(self, parser, latencies, interactive=True):
         self.parser = parser
         self.latencies = latencies
+        self.interactive = interactive
 
     def load(self, dataset):
         self.dataset = dataset
-        self.analyzed_filenames = dataset.find_analyzed_files()
+        self.raters = dataset.list_raters()
 
         self._current = 0
         self.axes.clear()
@@ -142,6 +145,7 @@ class WaveformPresenter(Atom):
         self.current = len(self.model.waveforms)-1
         self.toggle = None
         self.update()
+        self.modified = False
 
     def save(self):
         if np.isnan(self.model.threshold):
@@ -150,7 +154,8 @@ class WaveformPresenter(Atom):
             if not self.peaks_marked or not self.valleys_marked:
                 raise ValueError('Waves not identified')
         self.parser.save(self.model)
-        self.analyzed_filenames = self.dataset.find_analyzed_files()
+        self.raters = self.dataset.list_raters()
+        self.modified = False
 
     def update(self):
         for p in self.plots:
@@ -233,6 +238,7 @@ class WaveformPresenter(Atom):
         if self.latencies and not self.peaks_marked:
             self.guess()
         self.update()
+        self.modified = True
 
     def _get_toggle(self):
         return self._toggle
@@ -268,6 +274,7 @@ class WaveformPresenter(Atom):
         self.current = len(self.model.waveforms)-1
         self.toggle = 1, ptype
         self.update()
+        self.modified = True
 
     def update_point(self):
         level = self.model.waveforms[self.current].level
@@ -285,6 +292,7 @@ class WaveformPresenter(Atom):
             index = point.time_to_index(time)
             point.move(('set', index))
             self.update()
+            self.modified = True
         except:
             pass
 
@@ -321,29 +329,40 @@ class WaveformPresenter(Atom):
         self.peaks_marked = False
         self.valleys_marked = False
         self.update()
+        self.modified = True
 
     def clear_peaks(self):
         self.model.clear_peaks()
         self.peaks_marked = False
         self.update()
+        self.modified = True
 
     def clear_valleys(self):
         self.model.clear_valleys()
         self.valleys_marked = False
         self.update()
+        self.modified = True
 
-    def load_analysis(self, filename):
+    def load_analysis(self, rater):
         self.clear_points()
-        self.parser.load_analysis(self.model, filename)
+        _, th, peaks = self.dataset.load_analysis(rater)
+        self.model.load_analysis(th, peaks)
         self.peaks_marked = True
         self.valleys_marked = True
         self.update()
+        self.modified = True
 
-    def remove_analysis(self, filename):
-        filename.unlink()
-        items = self.analyzed_filenames[:]
-        items.remove(filename)
-        self.analyzed_filenames = items
+    def select_waveform(self, level):
+        for i, waveform in enumerate(self.model.waveforms):
+            if waveform.level == level:
+                self.current = i
+
+    def select_point(self, point):
+        number = int(point[1])
+        if point[0] == 'P':
+            self.toggle = number, Point.PEAK
+        else:
+            self.toggle = number, Point.VALLEY
 
 
 def scan_worker(parser, paths, queue, stop):
