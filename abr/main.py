@@ -6,7 +6,7 @@ from enaml.qt.qt_application import QtApplication
 from scipy import stats
 
 with enaml.imports():
-    from abr.launch_window import LaunchWindow
+    from abr.launch_window import LaunchWindow, STORE
     from abr.main_window import (DNDWindow, load_files, SerialWindow)
     from abr.compare_window import CompareWindow
     from abr.presenter import SerialWaveformPresenter, WaveformPresenter
@@ -75,6 +75,13 @@ def parse_args(parser, waves=True):
 
 
 def main():
+    parser = argparse.ArgumentParser('abr')
+    parser.add_argument('--clear-settings', action='store_true',
+                        help='Clear persisted settings')
+    args = parser.parse_args()
+    if args.clear_settings:
+        STORE.clear()
+
     app = QtApplication()
     window = LaunchWindow()
     window.show()
