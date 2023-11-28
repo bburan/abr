@@ -3,7 +3,7 @@ import subprocess
 from atom.api import Atom, Bool, Enum, Int, List, Str
 
 from enaml.core.api import Looper
-from enaml.layout.api import hbox, vbox
+from enaml.layout.api import align, hbox, vbox
 from enaml.stdlib.fields import IntField
 from enaml.stdlib.message_box import information
 from enaml.widgets.api import (CheckBox, Container, Field, FileDialogEx,
@@ -64,7 +64,7 @@ class Settings(Atom):
 
     def _default_waves(self):
         result = STORE.value('waves', [1, 2, 3, 4, 5])
-        return [int(r) for r in  sorted(set(result))]
+        return [int(r) for r in sorted(set(result))]
 
     def _observe_waves(self, event):
         STORE.setValue('waves', self.waves)
@@ -140,15 +140,13 @@ enamldef LaunchWindow(MainWindow):
                 hbox(p_label, p_field),
                 hbox(m_label, waves),
                 hbox(do_filter, filter_lb, l_filter_to, filter_ub, l_filter_end),
-                hbox(b_basic, b_loop),
+                hbox(b_basic, b_loop, b_compare),
                 shuffle,
             ),
-            a_label.width == m_label.width,
-            a_label.width == p_label.width,
-            a_label.width == do_filter.width,
-            b_basic.width == b_loop.width,
-            m_label.v_center == waves.v_center,
-            shuffle.left == b_loop.left,
+            align('width', a_label, m_label, p_label, do_filter),
+            align('width', b_basic, b_loop, b_compare),
+            align('v_center', m_label, waves),
+            align('left', shuffle, b_loop),
         ]
 
         Label: a_label:
@@ -220,7 +218,7 @@ enamldef LaunchWindow(MainWindow):
             clicked ::
                 settings.launch_batch()
 
-        PushButton: b_review:
+        PushButton: b_compare:
             text = 'Compare raters'
             enabled << bool(settings.rater)
             clicked ::
