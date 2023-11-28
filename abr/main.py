@@ -90,7 +90,7 @@ def main():
 
 
 def main_gui():
-    parser = argparse.ArgumentParser('abr_gui')
+    parser = argparse.ArgumentParser('abr-gui')
     add_default_arguments(parser)
     parser.add_argument('--demo', action='store_true', dest='demo',
                         default=False, help='Load demo data')
@@ -108,7 +108,7 @@ def main_gui():
 
 
 def main_batch():
-    parser = argparse.ArgumentParser("abr_batch")
+    parser = argparse.ArgumentParser('abr-batch')
     add_default_arguments(parser)
     parser.add_argument('dirnames', nargs='*')
     parser.add_argument('--skip-errors', action='store_true')
