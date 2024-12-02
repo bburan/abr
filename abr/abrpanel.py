@@ -108,7 +108,7 @@ class PointPlot(StylePlot):
         return style
 
     def update_plot(self):
-        self.plot.set_data(self.point.x, self.point.y)
+        self.plot.set_data([self.point.x], [self.point.y])
 
     def remove(self):
         self.plot.remove()
