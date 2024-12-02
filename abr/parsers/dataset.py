@@ -3,7 +3,7 @@ from pathlib import Path
 import re
 
 
-P_RATER = re.compile('.*kHz(?:-(\w+))?-analyzed.txt')
+P_RATER = re.compile('.*(?:kHz|click)(?:-(\w+))?-analyzed.txt')
 
 
 def get_rater(filename):
@@ -41,7 +41,7 @@ class DataCollection:
 @functools.total_ordering
 class Dataset:
 
-    filename_template = '{filename}-{frequency}kHz-{rater}analyzed.txt'
+    filename_template = '{filename}-{frequency}-{rater}analyzed.txt'
 
     def __init__(self, parent, frequency):
         self.parent = parent
@@ -59,16 +59,19 @@ class Dataset:
         raise NotImplementedError
 
     def get_analyzed_filename(self, rater):
-        frequency = round(self.frequency * 1e-3, 8)
+        if self.frequency == -1:
+            frequency = 'click'
+        else:
+            frequency = round(self.frequency * 1e-3, 8)
+            frequency = f'{frequency}kHz'
+
         filename = self.filename.with_suffix('')
         if rater != '*':
             rater = rater + '-'
-        return self.filename_template\
+        return self.filename_template \
             .format(filename=filename, frequency=frequency, rater=rater)
 
     def find_analyzed_files(self):
-        frequency = round(self.frequency * 1e-3, 8)
-        filename = self.filename.with_suffix('')
         glob_pattern = self.get_analyzed_filename('*')
         path = Path(glob_pattern)
         return list(path.parent.glob(path.name))
@@ -78,7 +81,9 @@ class Dataset:
 
     def load_analysis(self, rater):
         from . import load_analysis
-        return load_analysis(self.get_analyzed_filename(rater))
+        r = load_analysis(self.get_analyzed_filename(rater))
+        print(r)
+        return r
 
     def __lt__(self, other):
         if not isinstance(other, Dataset):

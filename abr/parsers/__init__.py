@@ -53,13 +53,22 @@ def filter_string(waveform):
 
 def load_analysis(fname):
     th_match = re.compile('Threshold \(dB SPL\): ([\w.-]+)')
-    freq_match = re.compile('Frequency \(kHz\): ([\d.]+)')
+    freq_match = re.compile('Frequency \(kHz\): ([\d.]+)|Stimulus: ([.\w]+)?')
     with open(fname) as fh:
         text = fh.readline()
         th = th_match.search(text).group(1)
         th = None if th == 'None' else float(th)
         text = fh.readline()
-        freq = float(freq_match.search(text).group(1))
+
+        match = freq_match.search(text)
+        if match.group(1) is not None:
+            freq = float(match.group(1))
+        else:
+            freq = match.group(2)
+            if freq == 'click':
+                freq = -1
+            else:
+                freq = float(freq)
 
         for line in fh:
             if line.startswith('NOTE'):
@@ -108,8 +117,6 @@ def parse_peaks(peaks, threshold):
 
 class Parser(object):
 
-    filename_template = '{filename}-{frequency}kHz-{user}analyzed.txt'
-
     def __init__(self, file_format, filter_settings, user=None):
         '''
         Parameters
@@ -124,23 +131,12 @@ class Parser(object):
         '''
         self._file_format = file_format
         self._filter_settings = filter_settings
-        self._user = user
+        self._rater = user
         self._module_name = f'abr.parsers.{file_format}'
         self._module = importlib.import_module(self._module_name)
 
     def load(self, fs):
         return fs.get_series(self._filter_settings)
-
-    def get_save_filename(self, filename, frequency):
-        # Round frequency to nearest 8 places to minimize floating-point
-        # errors.
-        user_name = self._user + '-' if self._user else ''
-        frequency = round(frequency * 1e-3, 8)
-        save_filename = self.filename_template.format(
-            filename=filename.with_suffix(''),
-            frequency=frequency,
-            user=user_name)
-        return Path(save_filename)
 
     def save(self, model):
         # Assume that all waveforms were filtered identically
@@ -157,14 +153,21 @@ class Parser(object):
         columns = '\t'.join(columns)
         spreadsheet = '\n'.join(waveform_string(w) \
                                 for w in reversed(model.waveforms))
+
+        if model.freq == -1:
+            stimulus = 'Stimulus: click'
+        else:
+            stimulus = f'Stimulus: {model.freq*1e-3:.2f} kHz'
+
         content = CONTENT.format(threshold=model.threshold,
-                                 frequency=model.freq*1e-3,
+                                 stimulus=stimulus,
                                  filter_history=filter_history,
                                  columns=columns,
                                  spreadsheet=spreadsheet,
                                  version=abr.__version__)
 
-        filename = self.get_save_filename(model.filename, model.freq)
+
+        filename = model.dataset.get_analyzed_filename(self._rater)
         with open(filename, 'w') as fh:
             fh.writelines(content)
 
@@ -173,12 +176,12 @@ class Parser(object):
 
     def find_processed(self, path):
         for ds in self.iter_all(path):
-            if self.get_save_filename(ds.filename, ds.frequency).exists():
+            if ds.get_analyzed_filename(self._rater).exists():
                 yield ds
 
     def find_unprocessed(self, path):
         for ds in self.iter_all(path):
-            if not self.get_save_filename(ds.filename, ds.frequency).exists():
+            if not ds.get_analyzed_filename(self._rater).exists():
                 yield ds
 
     def find_analyses(self, study_directory):
@@ -215,9 +218,9 @@ class Parser(object):
 
 CONTENT = '''
 Threshold (dB SPL): {threshold:.2f}
-Frequency (kHz): {frequency:.2f}
+{stimulus}
 Filter history (zpk format): {filter_history}
-file_format_version: 0.0.2
+file_format_version: 0.0.3
 code_version: {version}
 NOTE: Negative latencies indicate no peak. NaN for amplitudes indicate peak was unscorable.
 {columns}

@@ -38,7 +38,8 @@ def read_file(filename):
             line = fh.readline()
             if line.startswith('time'):
                 break
-            name, *keys = line.split(',')
+            name, *keys = line.strip().split(',')
+            keys = [-1 if k == 'click' else float(k) for k in keys]
             header[name] = np.array(keys).astype('f')
         data = pd.read_csv(fh, index_col=0, header=None)
 
@@ -116,13 +117,14 @@ class PSIDataset(Dataset):
         series = ABRSeries(waveforms, self.frequency)
         series.filename = self.parent.filename
         series.id = self.parent.filename.parent.name
+        series.dataset = self
         return series
 
 
 def iter_all(path):
     results = []
     path = Path(path)
-    if path.stem.endswith('abr_io'):
+    if 'abr_io' in path.stem:
         yield from PSIDataCollection(path).iter_frequencies()
     else:
         for subpath in path.glob('**/*abr_io'):

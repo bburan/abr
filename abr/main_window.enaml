@@ -332,7 +332,10 @@ def add_dock_item(dock_area, model, presenter):
     items = dock_area.dock_items()
     n_items = len(items) - 1
     target = items[-1].name if n_items else ''
-    title = f'{model.frequency * 1e-3:.2f} kHz - {model.parent.name}'
+    if model.frequency == -1:
+        title = f'Click - {model.parent.name}'
+    else:
+        title = f'{model.frequency * 1e-3:.2f} kHz - {model.parent.name}'
     item = MPLDockItem(dock_area, name='dock_{}'.format(n_items), title=title,
                        presenter=presenter)
     op = InsertTab(item=item.name, target=target)
