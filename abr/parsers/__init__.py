@@ -176,12 +176,12 @@ class Parser(object):
 
     def find_processed(self, path):
         for ds in self.iter_all(path):
-            if ds.get_analyzed_filename(self._rater).exists():
+            if Path(ds.get_analyzed_filename(self._rater).exists()):
                 yield ds
 
     def find_unprocessed(self, path):
         for ds in self.iter_all(path):
-            if not ds.get_analyzed_filename(self._rater).exists():
+            if not Path(ds.get_analyzed_filename(self._rater)).exists():
                 yield ds
 
     def find_analyses(self, study_directory):

@@ -81,9 +81,7 @@ class Dataset:
 
     def load_analysis(self, rater):
         from . import load_analysis
-        r = load_analysis(self.get_analyzed_filename(rater))
-        print(r)
-        return r
+        return load_analysis(self.get_analyzed_filename(rater))
 
     def __lt__(self, other):
         if not isinstance(other, Dataset):

@@ -129,3 +129,5 @@ def iter_all(path):
     else:
         for subpath in path.glob('**/*abr_io'):
             yield from PSIDataCollection(subpath).iter_frequencies()
+        for subpath in path.glob('**/*abr_io_click'):
+            yield from PSIDataCollection(subpath).iter_frequencies()
