@@ -62,8 +62,8 @@ class Dataset:
         if self.frequency == -1:
             frequency = 'click'
         else:
-            frequency = round(self.frequency * 1e-3, 8)
-            frequency = f'{frequency}kHz'
+            frequency = str(round(self.frequency * 1e-3, 3)) + 'kHz'
+        print(frequency)
 
         filename = self.filename.with_suffix('')
         if rater != '*':
